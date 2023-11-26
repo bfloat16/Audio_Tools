@@ -1,0 +1,45 @@
+import argparse
+import os
+from concurrent.futures import ProcessPoolExecutor
+from glob import glob
+import librosa
+import soundfile as sf
+from tqdm import tqdm
+import shutil
+
+def process_batch(file_chunk, in_dir, out_dir):
+    for filename in tqdm(file_chunk):
+        y, sr = librosa.load(filename, sr=44100, mono=True)
+        out_audio = filename.replace(in_dir, out_dir).replace('.ogg', '.wav')
+        in_lab = filename.replace('.ogg', '.txt')
+        out_lab = filename.replace(in_dir, out_dir).replace('.ogg', '.txt')
+        os.makedirs(os.path.dirname(out_audio), exist_ok=True)
+
+        sf.write(out_audio, y, sr, subtype='PCM_16')
+        shutil.copy(in_lab, out_lab)
+
+def parallel_process(filenames, num_processes, in_dir, out_dir):
+    with ProcessPoolExecutor(max_workers=num_processes) as executor:
+        tasks = []
+        for i in range(num_processes):
+            start = int(i * len(filenames) / num_processes)
+            end = int((i + 1) * len(filenames) / num_processes)
+            file_chunk = filenames[start:end]
+            tasks.append(executor.submit(process_batch, file_chunk, in_dir, out_dir))
+        for task in tqdm(tasks, position = 0):
+            task.result()
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--in_dir", type=str, default=r"C:\Users\bfloat16\Desktop\9")
+    parser.add_argument("--out_dir", type=str, default=r"C:\Users\bfloat16\Desktop\99")
+    parser.add_argument('--num_processes', type=int, default=20)
+    args = parser.parse_args()
+
+    filenames = glob(f"{args.in_dir}/*/*.ogg", recursive=True)
+
+    num_processes = args.num_processes
+    if num_processes == 0:
+        num_processes = os.cpu_count()
+
+    parallel_process(filenames, num_processes, args.in_dir, args.out_dir)
