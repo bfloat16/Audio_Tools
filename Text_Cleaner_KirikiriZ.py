@@ -62,8 +62,8 @@ def main(file_path, output_directory_path):
     '''
 
 if __name__ == '__main__':
-    input_directory_path = r'D:\Reverse\FreeMoteToolkit\scn\Senren Banka'
-    output_directory_path = r'D:\Reverse\FreeMoteToolkit\lab'
+    input_directory_path = r'D:\Reverse\_GalGame\FreeMoteToolkit\scn\ATRI -My Dear Moments-'
+    output_directory_path = r'D:\Reverse\_GalGame\FreeMoteToolkit\lab'
     os.makedirs(output_directory_path, exist_ok=True)
     file_paths = glob.glob(os.path.join(input_directory_path, '*.json'))
     if os.path.exists("1111.txt"):
