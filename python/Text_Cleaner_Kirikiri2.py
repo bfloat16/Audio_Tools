@@ -16,7 +16,7 @@ def lab_dict1():
 def lab_dict2():
     return '『(.*?)』'
 
-def main(file_path, output_directory_path):
+def main(file_path, output_directory_path, debug_mode=False):
     with open(file_path, 'r', encoding=encoding_dict()) as file:
         lines = file.readlines()
     lines = [line.strip() for line in lines]
@@ -48,6 +48,7 @@ def main(file_path, output_directory_path):
     
     os.makedirs(output_directory_path, exist_ok=True)
     output_file_path = os.path.join(output_directory_path, 'debug.txt')
+
     if debug_mode:
         with open(output_file_path, 'a', encoding='utf-8') as output_file:
             for voice_value, lab_value in voice_lab_mapping.items():
@@ -71,4 +72,4 @@ if __name__ == '__main__':
         os.remove(output_file_path)
 
     for file_path in file_paths:
-        main(file_path, output_directory_path)
+        main(file_path, output_directory_path, debug_mode=debug_mode)

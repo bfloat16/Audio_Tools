@@ -6,7 +6,7 @@ from rich.progress import Progress, BarColumn, TextColumn, TimeElapsedColumn, Ti
 
 rich_progress = Progress(
     TextColumn("Preprocess:"),
-    BarColumn(bar_width=80), "[progress.percentage]{task.percentage:>3.1f}%",
+    BarColumn(), "[progress.percentage]{task.percentage:>3.1f}%",
     "•",
     MofNCompleteColumn(),
     "•",
@@ -19,7 +19,7 @@ rich_progress = Progress(
 def Genshin_ZH_clean(text, wav_name):
     PRONOUN_DICT = {
         "INFO_MALE_PRONOUN_UNCLE": "叔叔",
-        "INFO_MALE_PRONOUN_BIGBROTHER": "大哥哥",
+        "INFO_MALE_PRONOUN_BIGBROTHER": "大哥哥",   
         "INFO_MALE_PRONOUN_SISTER": "妹妹",
         "INFO_MALE_PRONOUN_CUTEBIGBROTHER": "大葛格",
         "INFO_MALE_PRONOUN_BOY": "少年",
@@ -105,42 +105,41 @@ def Universal_Clean(text, wav_name):
     return text
 
 def process_lab_text(lab_file, wav_file):
-    with open(lab_file, 'r') as lab:
+    with open(lab_file, 'r', encoding='utf-8') as lab:
         lab_text = lab.read()
     #这三个直接放弃，“难得呀，要不要去飞一飞？”这句会把chinese.py淦懵逼
     if '{NICKNAME}' in lab_text or '{TEXTJOIN#54}' in lab_text or '难得呀，要不要去飞一飞？'in lab_text:
-        return ''
+        return '', lab_text
     else:
-        lab_text = Genshin_ZH_clean(lab_text, wav_file)
-        lab_text = Universal_Clean(lab_text, wav_file)
-    return lab_text
+        lab_text_clean = Genshin_ZH_clean(lab_text, wav_file)
+        lab_text_clean = Universal_Clean(lab_text, wav_file)
+    return lab_text_clean, lab_text
 
 def main(input_dir):
     main = rich_progress.add_task("Preprocess", total=len(os.listdir(input_dir)))
     with rich_progress:
         for subdir in os.listdir(input_dir):
             subdir_path = os.path.join(input_dir, subdir)
-            utt_txt_file = os.path.join(subdir_path, 'utt_txt.txt')
-            if os.path.exists(utt_txt_file):
-                os.remove(utt_txt_file)
-
             lab_files = glob(os.path.join(subdir_path, '*.lab'))
             for lab_file in lab_files:
                 wav_file = lab_file.replace('.lab', '.wav')
                 if not os.path.exists(wav_file):
                     os.remove(lab_file)
                     continue
-                processed_lab_text = process_lab_text(lab_file, wav_file)
+                processed_lab_text, lab_text = process_lab_text(lab_file, wav_file)
                 if processed_lab_text == '':
                     os.remove(lab_file)
                     print(f'{lab_file} is removed')
                     os.remove(wav_file)
                     print(f'{wav_file} is removed')
                 else:
-                    with open(os.path.join(subdir_path, 'utt_txt.txt'), 'a') as utt_txt:
-                        utt_txt.write(f'{os.path.basename(wav_file)}|{processed_lab_text}\n')
+                    os.remove(lab_file)
+                    with open(os.path.join(subdir_path, lab_file.replace('.lab', '.txt')), 'a', encoding='utf-8') as lab_file:
+                        lab_file.write(f'{processed_lab_text}')
+                    with open(os.path.join(input_dir, "debug.txt"), 'a', encoding='utf-8') as debug_file:
+                        debug_file.write(f'{lab_text}\n')
+                        debug_file.write(f'{processed_lab_text}\n')
             rich_progress.update(main, advance=1)
 
 if __name__ == '__main__':
-    main(r'/home/ooppeenn/share/latent-diffusion-speech/data/train/audio')
-    main(r'/home/ooppeenn/share/latent-diffusion-speech/data/val/audio')
+    main(r'D:\1\mihoyo_CN_4.3_1.6')

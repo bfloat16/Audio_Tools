@@ -4,7 +4,7 @@ import glob
 import os
 import sys
 
-def main(file_path, output_directory_path):
+def main(file_path, output_directory_path, debug_mode=False):
     with open(file_path, 'r', encoding='utf-8') as file:
         lines = file.readlines()
     lines = [line.strip() for line in lines]
@@ -50,23 +50,26 @@ def main(file_path, output_directory_path):
                     continue
 
                 voice_lab_mapping[voice_value] = lab_value
+    
+    os.makedirs(output_directory_path, exist_ok=True)
 
-    for voice_value, lab_value in voice_lab_mapping.items():
-        output_file_path = os.path.join(output_directory_path, f'{voice_value}')
-        with open(output_file_path, 'w', encoding='utf-8') as output_file:
-            output_file.write(lab_value)
-    '''
-    with open("1111.txt", 'a', encoding='utf-8') as output_file:
+    if debug_mode:   
+        with open("1111.txt", 'a', encoding='utf-8') as output_file:
+            for voice_value, lab_value in voice_lab_mapping.items():
+                output_file.write(lab_value + '\n')
+    else:
         for voice_value, lab_value in voice_lab_mapping.items():
-            output_file.write(lab_value + '\n')
-    '''
+            output_file_path = os.path.join(output_directory_path, f'{voice_value}')
+            with open(output_file_path, 'w', encoding='utf-8') as output_file:
+                output_file.write(lab_value)
 
 if __name__ == '__main__':
-    input_directory_path = r'D:\Reverse\_GalGame\FreeMoteToolkit\scn\ATRI -My Dear Moments-'
-    output_directory_path = r'D:\Reverse\_GalGame\FreeMoteToolkit\lab'
-    os.makedirs(output_directory_path, exist_ok=True)
+    input_directory_path = r'D:\FuckGalGame\9-nine- Deluxe Edition\script'
+    output_directory_path = r'D:\FuckGalGame\9-nine- Deluxe Edition\lab'
+    debug_mode = False
+
     file_paths = glob.glob(os.path.join(input_directory_path, '*.json'))
     if os.path.exists("1111.txt"):
         os.remove("1111.txt")
     for file_path in file_paths:
-        main(file_path, output_directory_path)
+        main(file_path, output_directory_path, debug_mode=debug_mode)
