@@ -15,7 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Resample.cpp">
+    <ClCompile Include="Calculater_Total_Duration.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

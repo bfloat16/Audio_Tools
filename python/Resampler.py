@@ -13,7 +13,7 @@ def process_batch(file_chunk, in_dir, out_dir):
         os.makedirs(os.path.dirname(out_audio), exist_ok=True)
 
         # 使用 ffmpeg 进行音频格式转换，屏蔽输出
-        command = ['ffmpeg', '-i', filename, '-ar', '16000', '-ac', '1', out_audio]
+        command = ['ffmpeg', '-i', filename, '-ar', '44100', '-ac', '1', out_audio]
         subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         #shutil.copy(filename.replace('.opus', '.txt').replace('.ogg', '.txt').replace('.wav', '.txt'), out_lab)
 
@@ -30,14 +30,15 @@ def parallel_process(filenames, num_processes, in_dir, out_dir):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--in_dir", type=str, default=r"C:\Users\bfloat16\Desktop\1")
-    parser.add_argument("--out_dir", type=str, default=r"C:\Users\bfloat16\Desktop\2")
-    parser.add_argument('--num_processes', type=int, default=15)
+    parser.add_argument("--in_dir", type=str, default=r"E:\FuckGalGame")
+    parser.add_argument("--out_dir", type=str, default=r"D:\FuckGalGame")
+    parser.add_argument('--num_processes', type=int, default=20)
     args = parser.parse_args()
 
     filenames = glob(f"{args.in_dir}/**/*.wav", recursive=True)
     filenames += glob(f"{args.in_dir}/**/*.ogg", recursive=True)
     filenames += glob(f"{args.in_dir}/**/*.opus", recursive=True)
+    filenames += glob(f"{args.in_dir}/**/*.snd", recursive=True)
 
     num_processes = args.num_processes
     if num_processes == 0:

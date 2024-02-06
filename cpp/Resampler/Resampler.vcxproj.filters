@@ -15,7 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Calculate_Audio_Duration.cpp">
+    <ClCompile Include="Resampler.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

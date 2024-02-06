@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.8.34525.116
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Calculate_Audio_Duration", "Calculate_Audio_Duration\Calculate_Audio_Duration.vcxproj", "{8EC12C83-5EED-455D-985C-AE9FDE9237CF}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Calculater_Total_Duration", "Calculater_Total_Duration\Calculater_Total_Duration.vcxproj", "{8EC12C83-5EED-455D-985C-AE9FDE9237CF}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Resample", "Resample\Resample.vcxproj", "{7F43BAA2-500D-46A9-90C6-B00D6F3E2568}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Resample", "Resampler\Resampler.vcxproj", "{7F43BAA2-500D-46A9-90C6-B00D6F3E2568}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
