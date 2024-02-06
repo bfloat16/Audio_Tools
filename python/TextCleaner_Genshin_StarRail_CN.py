@@ -4,17 +4,7 @@ import random
 from glob import glob
 from rich.progress import Progress, BarColumn, TextColumn, TimeElapsedColumn, TimeRemainingColumn, MofNCompleteColumn
 
-rich_progress = Progress(
-    TextColumn("Preprocess:"),
-    BarColumn(), "[progress.percentage]{task.percentage:>3.1f}%",
-    "•",
-    MofNCompleteColumn(),
-    "•",
-    TimeElapsedColumn(),
-    "|",
-    TimeRemainingColumn(),
-    transient=True
-    )
+rich_progress = Progress(TextColumn("Preprocess:"), BarColumn(), "[progress.percentage]{task.percentage:>3.1f}%", "•", MofNCompleteColumn(), "•", TimeElapsedColumn(), "|", TimeRemainingColumn())
 
 def Genshin_ZH_clean(text, wav_name):
     PRONOUN_DICT = {

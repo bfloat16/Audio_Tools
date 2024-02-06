@@ -1,75 +1,68 @@
 import re
-import glob
 import os
+from glob import glob
 
-def encoding_dict():
-    #return 'Shift_JIS'
-    return 'utf-16le'
+def match_audio(line):
+    return re.search(r'pushint\s+(\d+)', line)
 
-def voice_dict():
-    #return 'voice=[A-Za-z0-9]+'
-    return 's=([a-zA-Z]+)_([0-9]+)'
+def match_speaker(line):
+    return re.search(r'call SPEAK_(\d+)_\s+#\s*([^\n]+)', line)
 
-def lab_dict1():
-    return '「(.*?)」'
+def match_text(line):
+    return re.search(r'pushstring\s+(.+)', line)
 
-def lab_dict2():
-    return '『(.*?)』'
-
-def main(file_path, output_directory_path, debug_mode=False):
-    with open(file_path, 'r', encoding=encoding_dict()) as file:
+def main(file_path, output_dir, debug_mode=False):
+    with open(file_path, 'r', encoding='cp932') as file:
         lines = file.readlines()
     lines = [line.strip() for line in lines]
-    voice_lab_mapping = {}
+
+    results = []
+    skip = -1  # 已经处理过的行
 
     for i, line in enumerate(lines):
-        if line.startswith(';'):
+        if i <= skip: # 跳过处理过的行
             continue
 
-        match = re.compile(voice_dict()).search(line)
-        if match:
-            next_line_index = i + 1
-            while next_line_index < len(lines) and (lines[next_line_index].startswith('@') or lines[next_line_index].startswith(';')):
-                next_line_index += 1
-
-            if '[r]' in lines[next_line_index]:
-                lines[next_line_index] = lines[next_line_index].replace('[r]', '').strip() + lines[next_line_index + 1].strip()
-            print(line)
-            lab_value = re.findall(lab_dict1(), lines[next_line_index])
-            if len(lab_value) == 0:
-                lab_value = re.findall(lab_dict2(), lines[next_line_index])
-            if len(lab_value) == 0:
+        audio = match_audio(line)
+        if audio:
+            if i + 1 < len(lines) and not re.search(r'pushtrue', lines[i + 1]):
+                skip = i + 1
                 continue
-            lab_value = lab_value[0]
+            if i + 2 < len(lines) and not re.search(r'call SPEAK_\w+_', lines[i + 2]):
+                skip = i + 2
+                continue
+            else:
+                audio = int(audio.group(1))
+                speaker = match_speaker(lines[i + 2]).group(2)
+                text = match_text(lines[i + 3])
+                if text:
+                    text = text.group(1)
+                else:
+                    skip = i + 3
+                    continue
+                skip = i + 3  # 更新skip为已经处理过的行
+                results.append({'speaker': speaker, 'audio': audio, 'text': text})
 
-            voice_value = match[0].replace('s=', '')
-            voice_lab_mapping[voice_value] = lab_value
+    subdir_path = file_path.split('\\')[-2]
 
-    
-    os.makedirs(output_directory_path, exist_ok=True)
-    output_file_path = os.path.join(output_directory_path, 'debug.txt')
-
-    if debug_mode:
-        with open(output_file_path, 'a', encoding='utf-8') as output_file:
-            for voice_value, lab_value in voice_lab_mapping.items():
-                output_file.write(voice_value + '|')
-                output_file.write(lab_value + '\n')
-    else:
-        for voice_value, lab_value in voice_lab_mapping.items():
-            output_file_path = os.path.join(output_directory_path, f'{voice_value}.txt')
-            with open(output_file_path, 'w', encoding='utf-8') as output_file:
-                output_file.write(lab_value)
+    for item in results:
+        if debug_mode:
+            debug_text = os.path.join(output_dir, f"{subdir_path}_debug.txt")
+            with open(debug_text, 'a', encoding='utf-8') as f:
+                f.write(f"{item['audio']:09d}|{item['speaker']}|{item['text']}\n")
+        else:
+            text_dir = os.path.join(output_dir, subdir_path, item['speaker'])
+            text_path = os.path.join(output_dir, subdir_path, item['speaker'], f"{item['audio']:09d}.txt")
+            os.makedirs(text_dir, exist_ok=True)
+            with open(text_path, 'w', encoding='utf-8') as f:
+                f.write(item['text'])
 
 if __name__ == '__main__':
-    input_directory_path = r"D:\FuckGalGame\Sousaku Kanojo no Ren'ai Koushiki\script"
-    output_directory_path = r"D:\FuckGalGame\Sousaku Kanojo no Ren'ai Koushiki\1"
-    debug_mode = True
+    input_dir = r"E:\FuckGalGame\FAVORITE"
+    output_dir = r"D:\2"
+    debug_mode = False
     
-    file_paths = glob.glob(os.path.join(input_directory_path, '*.ks'))
-
-    output_file_path = os.path.join(output_directory_path, 'debug.txt')
-    if os.path.exists(output_file_path):
-        os.remove(output_file_path)
+    file_paths = glob(f"{input_dir}/**/script.txt", recursive=True)
 
     for file_path in file_paths:
-        main(file_path, output_directory_path, debug_mode=debug_mode)
+        main(file_path, output_dir, debug_mode=debug_mode)
