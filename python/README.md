@@ -22,3 +22,8 @@
 适配的引擎：所有以ks.scn作为剧本的kirikiri引擎
 
 前置工具：https://github.com/crskycode/GARbro https://github.com/xmoezzz/KrkrExtract
+
+### TextCleaner_MCSM.py
+适配的游戏：我的世界故事模式第一季&第二季
+
+前置工具：https://aluigi.altervista.org/papers/ttarchext.zip
