@@ -31,6 +31,11 @@
 
 前置工具：None
 
+### TextCleaner_CatSystem2.py
+适配的游戏：所有CatSystem2脚本
+
+前置工具：None
+
 ### TextCleaner_DATEALIVE.py
 适配的游戏：https://store.steampowered.com/app/1047440/DATE_A_LIVE_Rio_Reincarnation/
 
