@@ -1,7 +1,7 @@
 import os
 import re
 from glob import glob
-from python.TextCleaner_BGI_00 import BGI
+from TextCleaner_BGI_00 import BGI
 
 def main(file_path, output_dir, debug_mode=False):
     results = []
