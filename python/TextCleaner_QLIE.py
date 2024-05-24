@@ -38,7 +38,7 @@ def main(file_path, output_directory_path, debug_mode=False):
 if __name__ == '__main__':
     in_dir = r'C:\Users\bfloat16\Downloads\IBUN01_DL\setup\appdata\scenario'
     out_dir = r'C:\Users\bfloat16\Downloads\IBUN01_DL\setup\appdata\scenario'
-    debug_mode = True
+    debug_mode = False
 
     file_paths = glob(f"{in_dir}/*.s", recursive=True)
     for file_path in file_paths:
