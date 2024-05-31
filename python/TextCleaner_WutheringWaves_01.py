@@ -14,8 +14,37 @@ def parse_args(args=None, namespace=None):
 
     parser.add_argument("-au", type=str, default=r"D:\Wuthering Waves\Saved\Resources\1.0.0\Resource_zh")
     parser.add_argument("-op", type=str, default=r"D:\AI\Audio_Tools\python\WutheringWaves_CHS_index.json")
+
+    parser.add_argument("-md", type=str, default="CHS") # CHS, CHT, EN, JP, KR
     return parser.parse_args(args=args, namespace=namespace)
-    
+
+def name_mappping(id):
+    id = int(id)
+    global mode
+    if mode == "CHS" or mode == "CHT" or mode =="JP":
+        if id == 1501 or id == 1604:
+            return "漂泊者_男"
+        elif id == 1502 or id == 1605:
+            return "漂泊者_女"
+        elif id == 83 or id == 354:
+            return ["漂泊者_男", "漂泊者_女"]
+        
+    elif mode == "EN":
+        if id == 1501 or id == 1604:
+            return "Rover_male"
+        elif id == 1502 or id == 1605:
+            return "Rover_female"
+        elif id == 83 or id == 354:
+            return ["Rover_male", "Rover_female"]
+        
+    elif mode == "KR":
+        if id == 1501 or id == 1604:
+            return "방랑자_남성"
+        elif id == 1502 or id == 1605:
+            return "방랑자_여성"
+        elif id == 83 or id == 354:
+            return ["방랑자_남성", "방랑자_여성"]
+        
 def clean_bin_data(data):
     start_index = data.find(b'[{')
     end_index = data.rfind(b'}]')
@@ -30,8 +59,8 @@ def extract_talk_items(data):
         if dictionary_A.get("Name") == "ShowTalk":
             talk_items = dictionary_A.get("Params", {}).get("TalkItems", [])
             for dictionary_B in talk_items:
-                if dictionary_B.get("Type") == "Talk" and dictionary_B.get("PlayVoice"):
-                    result.append({"TidTalk": dictionary_B.get("TidTalk"), "WhoId": dictionary_B.get("WhoId")})
+                #if dictionary_B.get("Type") == "Talk" or dictionary_B.get("PlayVoice"):
+                result.append({"TidTalk": dictionary_B.get("TidTalk"), "WhoId": dictionary_B.get("WhoId")})
     return result
 
 def get_speaker(cursor_lang, who_id):
@@ -39,14 +68,12 @@ def get_speaker(cursor_lang, who_id):
     result = cursor_lang.fetchone()
     if result:
         return result[0]
-    return who_id
 
 def get_text(cursor_lang, tid_talk):
     cursor_lang.execute("SELECT Content FROM MultiText WHERE Id=?", (tid_talk,))
     result = cursor_lang.fetchone()
     if result:
         return result[0]
-    return None
 
 def process_flowstate(cursor_flowstate, cursor_lang):
     cursor_flowstate.execute("SELECT binData FROM flowstate")
@@ -64,12 +91,21 @@ def process_flowstate(cursor_flowstate, cursor_lang):
             json_data = json.loads(cleaned_data_str)
             extracted_items = extract_talk_items(json_data)
             for item in extracted_items:
-                who_id = item["WhoId"]
                 tid_talk = item["TidTalk"]
-                speaker_name = get_speaker(cursor_lang, who_id)
                 talk_text = get_text(cursor_lang, tid_talk)
-                result.append({"WhoId": speaker_name, "Text": talk_text, "TidTalk": tid_talk})
+                if not talk_text or not tid_talk:
+                    continue
+
+                who_id = item["WhoId"]
+                if who_id == 83 or who_id == 354:
+                    result.append({"WhoId": name_mappping(who_id)[0], "Text": talk_text, "TidTalk": tid_talk + "_M"})
+                    result.append({"WhoId": name_mappping(who_id)[1], "Text": talk_text, "TidTalk": tid_talk + "_F"})
+                else:
+                    speaker_name = get_speaker(cursor_lang, who_id)
+                    speaker_name = speaker_name if speaker_name else "None"
+                    result.append({"WhoId": speaker_name, "Text": talk_text, "TidTalk": tid_talk})
         except (json.JSONDecodeError, UnicodeDecodeError) as e:
+            print(f"Error: {e}")
             continue
     return result
 
@@ -104,7 +140,7 @@ def find_file(file_name, start_dir):
             return os.path.join(root, file_name)
 
 def get_favorword(cursor_favorword):
-    cursor_favorword.execute("SELECT RoleId, BinData FROM favorword")
+    cursor_favorword.execute("SELECT BinData FROM favorword")
     rows = cursor_favorword.fetchall()
 
     function_name = re.compile(rb'/Game/Aki/WwiseAudio/[\w/]+/[\w\.]+')
@@ -112,7 +148,7 @@ def get_favorword(cursor_favorword):
 
     result = []
     for row in rows:
-        bin_data = row[1]
+        bin_data = row[0]
         match_function_name = function_name.findall(bin_data)[0]
         match_function_favorword = function_favorword.findall(bin_data)[0]
 
@@ -127,7 +163,7 @@ def get_favorword(cursor_favorword):
         except UnicodeDecodeError:
             decoded_favorword = None
 
-        result.append({"Role_id": row[0], "function_names": decoded_name, "function_favorwords": decoded_favorword})
+        result.append({"function_names": decoded_name, "function_favorwords": decoded_favorword})
     return result
 
 def process_favorword(cursor_favorword, cursor_lang, au):
@@ -137,32 +173,34 @@ def process_favorword(cursor_favorword, cursor_lang, au):
     for favorword in tqdm(favorwords):
         function_name = favorword["function_names"] + ".bnk"
         function_favorword = favorword["function_favorwords"]
-        role_id = favorword["Role_id"]
-        role_id_sql = f"RoleInfo_{role_id}_Name"
-        if role_id_sql == "RoleInfo_1501_Name":
-            print(function_favorword)   
-            print(function_name)
-        if role_id_sql == "RoleInfo_1502_Name":
-            print(function_favorword)
-            print(function_name)
+        role_id = function_favorword.split("_")[1][:4]
+        if role_id in ["1501", "1502", "1604", "1605"]:
+            Whoid = name_mappping(role_id)
+        else:
+            role_id_sql = f"RoleInfo_{role_id}_Name"
+            cursor_lang.execute("SELECT Content FROM MultiText WHERE Id=?", (role_id_sql,))
+            Whoid = cursor_lang.fetchone()[0]
 
         wwise_short_name = get_bnk(find_file(function_name, au))
         if len(wwise_short_name) != 1:
-            print(f"Error: {function_name}, {wwise_short_name}")
-        else:
-            wwise_short_name = wwise_short_name[0]["SourceID"]
+            print(f"{function_name}, {wwise_short_name}")
+        wwise_short_name = wwise_short_name[0]["SourceID"]
 
         cursor_lang.execute("SELECT Content FROM MultiText WHERE Id=?", (function_favorword,))
         text = cursor_lang.fetchone()[0]
+        if text =='（语气词）':
+            continue
+        text = text.replace('（', '').replace('）', '')
+        text = re.sub(r'<color=[^>]+>(.*?)<\/color>', r'\1', text)
 
-        cursor_lang.execute("SELECT Content FROM MultiText WHERE Id=?", (role_id_sql,))
-        Whoid = cursor_lang.fetchone()[0]
         results.append({"WhoId": Whoid, "Text": text, "TidTalk": wwise_short_name})
 
     return results
 
 if __name__ == "__main__":
+    global mode
     args = parse_args()
+    mode = args.md
 
     conn_flowstate = sqlite3.connect(args.fl)
     cursor_flowstate = conn_flowstate.cursor()
