@@ -1,75 +1,154 @@
+import os
 import re
 import json
-import glob
-import os
-import sys
+import argparse
+from tqdm import tqdm
 
-def main(file_path, output_directory_path, debug_mode=False):
-    with open(file_path, 'r', encoding='utf-8') as file:
-        lines = file.readlines()
-    lines = [line.strip() for line in lines]
-    pattern = re.compile(r'"voice": "(.*?)"')
-    voice_lab_mapping = {}
-    for i, line in enumerate(lines):
-        match = pattern.search(line)
-        if match:
-            voice_value = match.group(1)
-            voice_value = voice_value.lower() + '.txt'
+def parse_args(args=None, namespace=None):
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-JA", type=str, default=r"E:\Dataset\FuckGalGame\Lose\Maitetsu - Last Run!!\script")
+    parser.add_argument("-op", type=str, default=r'D:\AI\Audio_Tools\python\1.json')
+    parser.add_argument("-ft", type=int, default=0)
+    parser.add_argument("-fj", type=str, default='')
+    return parser.parse_args(args=args, namespace=namespace)
 
-            lab_value = lines[i - 4] #往上找4行
-            lab_value = re.findall(r'"(.*?)"', lab_value) #找到所有的引号里的内容
-
-            if lab_value == []: # 有voice 没有lab，跳过
-                continue
-            else:
-                for value in lab_value:
-                    if re.findall(r'「(.*?)', value) != []:
-                        lab_value = re.sub(r'[「」]', '', value)
-                        break
-
-            if isinstance(lab_value, list): # 有voice 有lab 没有「」，跳过
-                continue
-            else:
-                lab_value = re.sub(r'　', '', lab_value)
-                lab_value = re.sub(r'\\\\n', '', lab_value)
-                lab_value = re.sub(r'\[.+?\]', '', lab_value)
-                lab_value = re.sub(r'『|』', '', lab_value)
-                lab_value = re.sub(r'%.+;+', '', lab_value)
-                lab_value = re.sub(r'♪', '', lab_value)
-                lab_value = re.sub(r'●', '', lab_value)
-                
-                if 'ginka' in file_path.lower():
-                    lab_value = re.sub(r'（.*）', '', lab_value)
-
-                elif 'atri' or 'sabbat' or 'senren' in file_path.lower():
-                    lab_value = re.sub(r'（|）', '', lab_value)
-                
-                if lab_value == '':
-                    print(voice_value)
-                    print(lines[i - 4])
-                    continue
-
-                voice_lab_mapping[voice_value] = lab_value
+def read_json_file(filepath):
+    with open(filepath, 'r', encoding='utf-8') as file:
+        return json.load(file)
     
-    os.makedirs(output_directory_path, exist_ok=True)
+def text_cleaning(text):
+    text = re.sub(r"%[^;]*;|#[^;]*;|%\d+|\[[^[\\\/]*\]", '', text)
+    text = text.replace('%D$vl1', '')
+    text = text.replace('『', '').replace('』', '').replace('「', '').replace('」', '').replace('（', '').replace('）', '').replace('“', '').replace('”', '').replace('≪', '').replace('≫', '')
+    text = text.replace('\n', '').replace(r'\n', '').replace(r'　', '').replace('♪', '').replace('♥', '').replace('%r', '').replace('\u3000', '')
+    return text
 
-    if debug_mode:   
-        with open("1111.txt", 'a', encoding='utf-8') as output_file:
-            for voice_value, lab_value in voice_lab_mapping.items():
-                output_file.write(lab_value + '\n')
-    else:
-        for voice_value, lab_value in voice_lab_mapping.items():
-            output_file_path = os.path.join(output_directory_path, f'{voice_value}')
-            with open(output_file_path, 'w', encoding='utf-8') as output_file:
-                output_file.write(lab_value)
+def main(JA_dir, op_json, force_type, force_json):
+    files_original = [f for f in os.listdir(JA_dir) if f.endswith('.json') and not f.endswith('.resx.json')]
+
+    dialogues = []
+
+    for filename in tqdm(files_original):
+        _0_JA_data = read_json_file(os.path.join(JA_dir, filename))
+
+        if 'scenes' in _0_JA_data:
+            for _1_JA_scenes in _0_JA_data['scenes']:
+                if 'texts' in _1_JA_scenes:
+                    for _2_JA_texts in _1_JA_scenes['texts']:
+                        if _2_JA_texts[0] is None or _2_JA_texts[2] is None or _2_JA_texts[3] is None:
+                            continue
+                        try:
+                            if filename == force_json:
+                                Speaker = _2_JA_texts[0]
+                                Text = _2_JA_texts[2]
+                                Voice = _2_JA_texts[3]
+                                dialogues.append((Speaker, Voice, Text))
+
+                            elif force_type == 0: # JP
+                                Speaker = _2_JA_texts[0]
+                                Text = _2_JA_texts[1][0][1]
+                                Voice = _2_JA_texts[2][0]['voice']
+                                Text = text_cleaning(Text)
+                                dialogues.append((Speaker, Voice, Text))
+
+                            elif force_type == 1: # JP
+                                Speaker = _2_JA_texts[0]
+                                Text = _2_JA_texts[2]
+                                Voice = _2_JA_texts[3][0]['voice']
+                                Text = text_cleaning(Text)
+                                dialogues.append((Speaker, Voice, Text))
+
+                            elif force_type == 2: # JP EN
+                                Speaker = _2_JA_texts[0]
+                                Text = _2_JA_texts[2][0][1]
+                                Voice = _2_JA_texts[3][0]['voice']
+                                if '|' in Voice:
+                                    Voice = Voice.split('|')[0]
+                                dialogues.append((Speaker, Voice, Text))
+
+                            elif force_type == 3 or force_type == 4: # JP EN CHS | JP EN CHS CHT
+                                Speaker = _2_JA_texts[0]
+                                Text = _2_JA_texts[2][0][1]
+                                Voice = _2_JA_texts[3][0]['voice']
+                                if '|' in Voice:
+                                    Voice = Voice.split('|')[0]
+                                dialogues.append((Speaker, Voice, Text))
+                                
+                            else:
+                                if isinstance(_2_JA_texts[3], list):
+                                    for item in _2_JA_texts[3]:
+                                        Speaker = item['name']
+                                        Text = _2_JA_texts[2]
+                                        Voice = item['voice']
+                                        Text = text_cleaning(Text)
+                                        dialogues.append((Speaker, Voice, Text))
+                                else:
+                                    Speaker = _2_JA_texts[0]
+                                    Text = _2_JA_texts[2]
+                                    Voice = _2_JA_texts[3]
+                                    Text = text_cleaning(Text)
+                                    dialogues.append((Speaker, Voice, Text))
+                        except:
+                            print(f"Error in {filename}")
+                            exit()
+    
+    with open(op_json, mode='w', encoding='utf-8') as file:
+        json_data = [{'Speaker': Speaker, 'Voice': Voice, 'Text': Text} for Speaker, Voice, Text in dialogues]
+        json.dump(json_data, file, ensure_ascii=False, indent=4)
 
 if __name__ == '__main__':
-    input_directory_path = r'D:\FuckGalGame\9-nine- Deluxe Edition\script'
-    output_directory_path = r'D:\FuckGalGame\9-nine- Deluxe Edition\lab'
-    debug_mode = False
+    cmd = parse_args()
+    main(cmd.JA, cmd.op, cmd.ft, cmd.fj)
+    '''
+    煞笔PSB SCN文件，瞎套娃搞得乱七八糟的，能不能搞得简洁点，屎山一堆，下面是结构（不一定对，但基本上都是一样的，总有些厂商喜欢乱改）：
+    main_json:
+        scenes(type=list): # mark_01
+            index_0(type=dict):
+            index_1(type=dict):
+            ......
+                texts(type=list): # mark_02
+                    index_0(type=list):
+                    index_1(type=list):
+                    ......
+                title(type=list): # 最大是三个，对应日中英三语，可以用len()判断上面的texts(type=list)是哪种格式
+                    index_0(type=str)
+                    index_1(type=str)
+                    index_2(type=str)
+    
+    if len(title) == 1:
+        texts(type=list):
+            index_0(type=str) # 真实的角色名（不确定）
+            index_1(type=str) # 显示的角色名（刚出场你不知道TA是谁，就会显示？？？）（不确定）
+            index_2(type=str) # 对话
 
-    file_paths = glob.glob(os.path.join(input_directory_path, '*.json'))
-    if os.path.exists("1111.txt"):
-        os.remove("1111.txt")
-    for file_path in file_paths:
-        main(file_path, output_directory_path, debug_mode=debug_mode)
+    if len(title) == 2:
+        texts(type=list):
+            index_0(type=list):
+                index_0(type=str) # 真实的角色名（角色本来的名字）
+                index_1(type=str) # 显示的角色名（刚出场你不知道TA是谁，就会显示？？？）
+                index_2(type=list):
+                    index_0(type=str): # 中文 或 日文
+                        index_0(type=str) # 真实角色名
+                        index_1(type=str) # 对话
+                    index_1(type=str): # 英文
+                        index_0(type=str) # 真实角色名
+                        index_1(type=str) # 对话
+
+    if len(title) == 3:
+        texts(type=list):
+            index_0(type=list):
+                index_0(type=str) # 真实的角色名（角色本来的名字）（不确定）
+                index_1(type=list):
+                    index_0(type=list): # 日文
+                        index_0(type=str) # 真实角色名（不确定）
+                        index_1(type=str) # 对话
+                        index_2(type=int) # 文本长度
+                    index_1(type=str): # 英文
+                        index_0(type=str) # 真实角色名
+                        index_1(type=str) # 对话
+                        index_2(type=int) # 文本长度
+                    index_2(type=str): # 中文
+                        index_0(type=str) # 真实角色名
+                        index_1(type=str) # 对话
+                        index_2(type=int) # 文本长度
+    '''

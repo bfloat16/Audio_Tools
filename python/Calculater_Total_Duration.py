@@ -60,13 +60,14 @@ def main(in_dir, num_processes):
         print(f"SUM: {total_duration[0]:02d}:{total_duration[1]:02d}:{total_duration[2]:05.2f}")
         print(f"MAX: {max_duration[0]:02d}:{max_duration[1]:02d}:{max_duration[2]:05.2f}")
         print(f"MIN: {min_duration[0]:02d}:{min_duration[1]:02d}:{min_duration[2]:05.2f}")
+        return(f'{total_duration[0]:02d}:{total_duration[1]:02d}:{total_duration[2]:05.2f}')
 
     else:
         print("No audio files found.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--in_dir", type=str, default=r"D:\FuckGalGame")
+    parser.add_argument("--in_dir", type=str, default=r"C:\Users\bfloat16\Desktop\WutheringWaves_CHS")
     parser.add_argument('--num_processes', type=int, default=10)
     args = parser.parse_args()
 
