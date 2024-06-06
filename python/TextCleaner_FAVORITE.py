@@ -1,68 +1,82 @@
 import re
-import os
+import json
+import argparse
+from tqdm import tqdm
 from glob import glob
 
-def match_audio(line):
-    return re.search(r'pushint\s+(\d+)', line)
+def parse_args(args=None, namespace=None):
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-JA", type=str, default=r"E:\Games\Galgame\FAVORITE\AstralAir no Shiroki Towa")
+    parser.add_argument("-op", type=str, default=r'D:\AI\Audio_Tools\python\1.json')
+    return parser.parse_args(args=args, namespace=namespace)
 
-def match_speaker(line):
-    return re.search(r'call SPEAK_(\d+)_\s+#\s*([^\n]+)', line)
+def text_cleaning(text):
+    text = re.sub(r'\[(\w+)\|\w+\]', r'\1', text)
+    text = re.sub(r'\[・\|(\w+)\]', r'\1', text)
+    text = text.replace('『', '').replace('』', '').replace('「', '').replace('」', '').replace('（', '').replace('）', '')
+    text = text.replace('　', '')
+    return text
 
-def match_text(line):
-    return re.search(r'pushstring\s+(.+)', line)
-
-def main(file_path, output_dir, debug_mode=False):
-    with open(file_path, 'r', encoding='cp932') as file:
-        lines = file.readlines()
-    lines = [line.strip() for line in lines]
-
+def main(JA_dir, op_json):
+    filelist = glob(f"{JA_dir}/**/script.txt", recursive=True)
     results = []
-    skip = -1  # 已经处理过的行
+    for file_name in filelist:
+        with open(file_name, 'r', encoding='cp932') as file:
+            script = file.read()
+            script = re.sub(r'	neg\n', '', script)
 
-    for i, line in enumerate(lines):
-        if i <= skip: # 跳过处理过的行
-            continue
+        segments = script.split('# =================================================')
 
-        audio = match_audio(line)
-        if audio:
-            if i + 1 < len(lines) and not re.search(r'pushtrue', lines[i + 1]):
-                skip = i + 1
-                continue
-            if i + 2 < len(lines) and not re.search(r'call SPEAK_\w+_', lines[i + 2]):
-                skip = i + 2
-                continue
-            else:
-                audio = int(audio.group(1))
-                speaker = match_speaker(lines[i + 2]).group(2)
-                text = match_text(lines[i + 3])
-                if text:
-                    text = text.group(1)
-                else:
-                    skip = i + 3
-                    continue
-                skip = i + 3  # 更新skip为已经处理过的行
-                results.append({'speaker': speaker, 'audio': audio, 'text': text})
+        results_spk = []
 
-    subdir_path = file_path.split('\\')[-2]
+        for segment in segments:
+            segment = segment.strip()
+            match = re.match(r'(SPEAK_\d+_):', segment)
+            if match:
+                speak_id = match.group(1)
+                pushstrings = re.findall(r'pushstring\s+(.*)', segment)
+                if pushstrings:
+                    last_pushstring = pushstrings[-1]
+                    last_pushstring = last_pushstring.replace('　', '').replace(' ', '')
+                    results_spk.append((speak_id, last_pushstring))
+        
+        pattern_1 = re.compile(r'^.*pushint.*\r?\n.*pushtrue rep.*\r?\n.*call SPEAK_.*\r?\n.*pushstring.*$', re.MULTILINE)
+        matches_1 = pattern_1.findall(script)
+        pattern_2 = re.compile(r'^.*pushint.*\r?\n.*pushint.*\r?\n.*pushtrue\b\r?\n.call SPEAK_.*\r?\n.*pushstring.*$', re.MULTILINE)
+        matches_2 = pattern_2.findall(script)
+        
+        for match in matches_1:
+            parts = match.split('\n')
+            cleaned_parts = [part.lstrip('\t') for part in parts]
+            for i, part in enumerate(cleaned_parts):
+                if i == 0:
+                    Voice = re.search(r'pushint\s+(\d+)', part).group(1)
+                elif i == 2:
+                    Speaker = re.search(r'call\s(SPEAK_\d+_)', part).group(1)
+                    Speaker = next((spk[1] for spk in results_spk if spk[0] == Speaker), None)
+                elif i == 3:
+                    Text = re.search(r'pushstring\s+(.+)', part).group(1)
+                    Text = text_cleaning(Text)
+            results.append((Speaker, Voice, Text))
 
-    for item in results:
-        if debug_mode:
-            debug_text = os.path.join(output_dir, f"{subdir_path}_debug.txt")
-            with open(debug_text, 'a', encoding='utf-8') as f:
-                f.write(f"{item['audio']:09d}|{item['speaker']}|{item['text']}\n")
-        else:
-            text_dir = os.path.join(output_dir, subdir_path, item['speaker'])
-            text_path = os.path.join(output_dir, subdir_path, item['speaker'], f"{item['audio']:09d}.txt")
-            os.makedirs(text_dir, exist_ok=True)
-            with open(text_path, 'w', encoding='utf-8') as f:
-                f.write(item['text'])
+        for match in matches_2:
+            parts = match.split('\n')
+            cleaned_parts = [part.lstrip('\t') for part in parts]
+            for i, part in enumerate(cleaned_parts):
+                if i == 0:
+                    Voice = re.search(r'pushint\s+(\d+)', part).group(1)
+                elif i == 3:
+                    Speaker = re.search(r'call\s(SPEAK_\d+_)', part).group(1)
+                    Speaker = next((spk[1] for spk in results_spk if spk[0] == Speaker), None)
+                elif i == 4:
+                    Text = re.search(r'pushstring\s+(.+)', part).group(1)
+                    Text = text_cleaning(Text)
+            results.append((Speaker, Voice, Text))
 
-if __name__ == '__main__':
-    input_dir = r"E:\FuckGalGame\FAVORITE"
-    output_dir = r"D:\2"
-    debug_mode = False
+    with open(op_json, mode='w', encoding='utf-8') as file:
+        json_data = [{'Speaker': Speaker, 'Voice': Voice.zfill(9), 'Text': Text} for Speaker, Voice, Text in tqdm(results)]
+        json.dump(json_data, file, ensure_ascii=False, indent=4)
     
-    file_paths = glob(f"{input_dir}/**/script.txt", recursive=True)
-
-    for file_path in file_paths:
-        main(file_path, output_dir, debug_mode=debug_mode)
+if __name__ == '__main__':
+    args = parse_args()
+    main(args.JA, args.op)
