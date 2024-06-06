@@ -6,7 +6,7 @@ from glob import glob
 
 def parse_args(args=None, namespace=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument("-JA", type=str, default=r"E:\Games\Galgame\FAVORITE\AstralAir no Shiroki Towa")
+    parser.add_argument("-JA", type=str, default=r"E:\Games\Galgame\FAVORITE\Sakura, Moyu. -as the Night's, Reincarnation-")
     parser.add_argument("-op", type=str, default=r'D:\AI\Audio_Tools\python\1.json')
     return parser.parse_args(args=args, namespace=namespace)
 
@@ -20,6 +20,7 @@ def text_cleaning(text):
 def main(JA_dir, op_json):
     filelist = glob(f"{JA_dir}/**/script.txt", recursive=True)
     results = []
+    
     for file_name in filelist:
         with open(file_name, 'r', encoding='cp932') as file:
             script = file.read()
@@ -27,7 +28,9 @@ def main(JA_dir, op_json):
 
         segments = script.split('# =================================================')
 
-        results_spk = []
+        results_spk = {}
+        speak_mapping = {}
+        speak_pushstring = {}
 
         for segment in segments:
             segment = segment.strip()
@@ -38,8 +41,13 @@ def main(JA_dir, op_json):
                 if pushstrings:
                     last_pushstring = pushstrings[-1]
                     last_pushstring = last_pushstring.replace('　', '').replace(' ', '')
-                    results_spk.append((speak_id, last_pushstring))
-        
+                    speak_pushstring[speak_id] = last_pushstring
+                
+                calls = re.findall(r'call\s+(SPEAK_\d+_)', segment)
+                for call in calls:
+                    speak_mapping[speak_id] = call
+        results_spk = {**speak_pushstring, **{key: speak_pushstring[val] for key, val in speak_mapping.items() if val in speak_pushstring}}
+
         pattern_1 = re.compile(r'^.*pushint.*\r?\n.*pushtrue rep.*\r?\n.*call SPEAK_.*\r?\n.*pushstring.*$', re.MULTILINE)
         matches_1 = pattern_1.findall(script)
         pattern_2 = re.compile(r'^.*pushint.*\r?\n.*pushint.*\r?\n.*pushtrue\b\r?\n.call SPEAK_.*\r?\n.*pushstring.*$', re.MULTILINE)
@@ -53,7 +61,7 @@ def main(JA_dir, op_json):
                     Voice = re.search(r'pushint\s+(\d+)', part).group(1)
                 elif i == 2:
                     Speaker = re.search(r'call\s(SPEAK_\d+_)', part).group(1)
-                    Speaker = next((spk[1] for spk in results_spk if spk[0] == Speaker), None)
+                    Speaker = results_spk.get(Speaker, None)
                 elif i == 3:
                     Text = re.search(r'pushstring\s+(.+)', part).group(1)
                     Text = text_cleaning(Text)
@@ -67,14 +75,14 @@ def main(JA_dir, op_json):
                     Voice = re.search(r'pushint\s+(\d+)', part).group(1)
                 elif i == 3:
                     Speaker = re.search(r'call\s(SPEAK_\d+_)', part).group(1)
-                    Speaker = next((spk[1] for spk in results_spk if spk[0] == Speaker), None)
+                    Speaker = results_spk.get(Speaker, None)
                 elif i == 4:
                     Text = re.search(r'pushstring\s+(.+)', part).group(1)
                     Text = text_cleaning(Text)
             results.append((Speaker, Voice, Text))
 
     with open(op_json, mode='w', encoding='utf-8') as file:
-        json_data = [{'Speaker': Speaker, 'Voice': Voice.zfill(9), 'Text': Text} for Speaker, Voice, Text in tqdm(results)]
+        json_data = [{'Speaker': Speaker, 'Voice': Voice.zfill(8), 'Text': Text} for Speaker, Voice, Text in tqdm(results)]
         json.dump(json_data, file, ensure_ascii=False, indent=4)
     
 if __name__ == '__main__':
