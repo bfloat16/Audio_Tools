@@ -9,19 +9,34 @@ from tqdm import tqdm
 def parse_args(args=None, namespace=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("-fl", type=str, default=r"D:\Wuthering Waves\Content\Paks\pakchunk10-WindowsNoEditor\Client\Content\Aki\ConfigDB\db_flowState.db")
-    parser.add_argument("-la", type=str, default=r"D:\Wuthering Waves\Content\Paks\pakchunk10-WindowsNoEditor\Client\Content\Aki\ConfigDB\zh-Hans\lang_multi_text.db")
+    parser.add_argument("-la", type=str, default=r"D:\Wuthering Waves\Content\Paks\pakchunk10-WindowsNoEditor\Client\Content\Aki\ConfigDB\en\lang_multi_text.db")
     parser.add_argument("-fa", type=str, default=r"D:\Wuthering Waves\Content\Paks\pakchunk10-WindowsNoEditor\Client\Content\Aki\ConfigDB\db_favor.db")
 
-    parser.add_argument("-au", type=str, default=r"D:\Wuthering Waves\Saved\Resources\1.0.0\Resource_zh")
-    parser.add_argument("-op", type=str, default=r"D:\AI\Audio_Tools\python\WutheringWaves_CHS_index.json")
+    parser.add_argument("-au", type=str, default=r"D:\Wuthering Waves\Saved\Resources\1.0.0\Resource_en")
+    parser.add_argument("-op", type=str, default=r"D:\AI\Audio_Tools\python\WutheringWaves_EN_index.json")
 
-    parser.add_argument("-md", type=str, default="CHS") # CHS, CHT, EN, JP, KR
+    parser.add_argument("-md", type=str, default="EN") # CHS, CHT, EN, JA, KR
     return parser.parse_args(args=args, namespace=namespace)
+
+def text_cleaning(text):
+    global mode
+    if mode == "CHS" or mode == "CHT" or mode =="JA":
+        text = text.replace('{PlayerName}', '漂泊者')
+    elif mode == "EN":
+        text = text.replace('{PlayerName}', 'Rover')
+    elif mode == "KR":
+        text = text.replace('{PlayerName}', '방랑자')
+    text = text.replace('（', '').replace('）', '').replace('(', '').replace(')', '').replace('「', '').replace('」', '').replace('"', '')
+    text = text.replace('\r', '').replace('\n', '')
+    text = re.sub(r'<color=[^>]+>(.*?)<\/color>', r'\1', text)
+    text = re.sub(r"<.*?>", '', text)
+    text = text.replace('<', '')
+    return text
 
 def name_mappping(id):
     id = int(id)
     global mode
-    if mode == "CHS" or mode == "CHT" or mode =="JP":
+    if mode == "CHS" or mode == "CHT" or mode =="JA":
         if id == 1501 or id == 1604:
             return "漂泊者_男"
         elif id == 1502 or id == 1605:
@@ -95,6 +110,8 @@ def process_flowstate(cursor_flowstate, cursor_lang):
                 talk_text = get_text(cursor_lang, tid_talk)
                 if not talk_text or not tid_talk:
                     continue
+                
+                talk_text = text_cleaning(talk_text)
 
                 who_id = item["WhoId"]
                 if who_id == 83 or who_id == 354:
@@ -103,10 +120,23 @@ def process_flowstate(cursor_flowstate, cursor_lang):
                 else:
                     speaker_name = get_speaker(cursor_lang, who_id)
                     speaker_name = speaker_name if speaker_name else "None"
+                    speaker_name = speaker_name.replace('"', '').replace(':', '')
+                    sex_pattern = r"\{Male=(.*?);Female=(.*?)\}"
+                    match_sex = re.search(sex_pattern, talk_text)
+                    if match_sex:
+                        male_value = match_sex.group(1)
+                        female_value = match_sex.group(2)
+                        result_with_male = re.sub(sex_pattern, male_value, talk_text)
+                        result_with_female = re.sub(sex_pattern, female_value, talk_text)
+                        result.append({"WhoId": speaker_name, "Text": result_with_male, "TidTalk": tid_talk + "_M"})
+                        result.append({"WhoId": speaker_name, "Text": result_with_female, "TidTalk": tid_talk + "_F"})
+                        continue
                     result.append({"WhoId": speaker_name, "Text": talk_text, "TidTalk": tid_talk})
+
         except (json.JSONDecodeError, UnicodeDecodeError) as e:
             print(f"Error: {e}")
             continue
+
     return result
 
 def get_bnk(file_path):
@@ -190,8 +220,7 @@ def process_favorword(cursor_favorword, cursor_lang, au):
         text = cursor_lang.fetchone()[0]
         if text =='（语气词）':
             continue
-        text = text.replace('（', '').replace('）', '')
-        text = re.sub(r'<color=[^>]+>(.*?)<\/color>', r'\1', text)
+        text = text_cleaning(text)
 
         results.append({"WhoId": Whoid, "Text": text, "TidTalk": wwise_short_name})
 

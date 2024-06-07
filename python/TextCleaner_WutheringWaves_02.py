@@ -10,7 +10,7 @@ def process_tid_talk(tid_talk):
     if isinstance(tid_talk, int) or tid_talk.isdigit():
         return f"{tid_talk}.wem"
     else:
-        return f"zh_vo_{tid_talk}"
+        return f"en_vo_{tid_talk}"
 
 def copy_files(source_dir, dest_dir, file_mapping):
     for root, _, files in os.walk(source_dir):
@@ -38,8 +38,7 @@ def copy_files(source_dir, dest_dir, file_mapping):
                 else:
                     print(f"未找到文件 {file} 对应的文本")
                     continue
-
-                dest_subdir = os.path.join(dest_dir, who_id)
+                dest_subdir = os.path.join(dest_dir, who_id.replace('?', '？'))
                 os.makedirs(dest_subdir, exist_ok=True)
                 dest_path = os.path.join(dest_subdir, file)
                 shutil.copyfile(os.path.join(root, file), dest_path)
@@ -53,7 +52,7 @@ def create_file_mapping(data):
     return file_mapping
 
 # 读取JSON数据
-json_data = load_json(r'D:\AI\Audio_Tools\python\WutheringWaves_CHS_index.json')
+json_data = load_json(r'D:\AI\Audio_Tools\python\WutheringWaves_JA_index.json')
 
 # 创建文件映射
 file_mapping = create_file_mapping(json_data)
@@ -62,12 +61,12 @@ file_mapping = create_file_mapping(json_data)
 result = {entry['WhoId']: [] for entry in json_data}
 
 # 复制文件并生成结果
-source_directory = r'D:\Wuthering Waves\Saved\Resources\1.0.0\Resource_zh'
-destination_directory = r'C:\Users\bfloat16\Desktop\12221212'
+source_directory = r'D:\Wuthering Waves\Saved\Resources\1.0.0\Resource_ja'
+destination_directory = r'C:\Users\bfloat16\Desktop\WutheringWaves_JA'
 copy_files(source_directory, destination_directory, file_mapping)
 
 result = {who_id: texts for who_id, texts in result.items() if texts}
 
 # 输出结果为JSON文件
-with open(os.path.join(destination_directory,'WutheringWaves_CHS.json'), 'w', encoding='utf-8') as outfile:
+with open(os.path.join(destination_directory,'index.json'), 'w', encoding='utf-8') as outfile:
     json.dump(result, outfile, ensure_ascii=False, indent=4)

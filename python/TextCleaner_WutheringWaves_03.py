@@ -39,6 +39,6 @@ def main(source_directory, vgmstream_cli_path):
         thread.join()
 
 if __name__ == '__main__':
-    source_directory = r'C:\Users\bfloat16\Desktop\12221212'
-    vgmstream_cli_path = r"C:\Users\bfloat16\Downloads\vgmstream-win64\vgmstream-cli.exe"
+    source_directory = r'C:\Users\bfloat16\Desktop\WutheringWaves_JA'
+    vgmstream_cli_path = r"C:\Users\bfloat16\Downloads\#TMP2\vgmstream-win64\vgmstream-cli.exe"
     main(source_directory, vgmstream_cli_path)
