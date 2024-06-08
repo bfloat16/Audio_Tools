@@ -5,8 +5,8 @@ from tqdm import tqdm
 
 # 读取JSON文件
 input_json_filepath = r'D:\AI\Audio_Tools\python\1.json'
-source_folder = r"E:\Dataset\FuckGalGame\ASa Project\Koibana Ren'ai - Mini Fandisk - After Festival\voice"
-output_folder = r"C:\Users\bfloat16\Desktop\ASa Project_Koibana Ren'ai - Mini Fandisk - After Festival"
+source_folder = r"E:\Dataset\FuckGalGame\ensemble\Golden Marriage\voice"
+output_folder = r"C:\Users\bfloat16\Desktop\ensemble_Golden Marriage"
 
 # 读取JSON文件数据
 with open(input_json_filepath, 'r', encoding='utf-8') as file:

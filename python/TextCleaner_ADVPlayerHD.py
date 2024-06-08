@@ -1,88 +1,96 @@
-import os
 import re
+import json
+import argparse
 from glob import glob
+from tqdm import tqdm
 
-def main(file_path, output_dir, debug_mode=False):
-    with open(file_path, 'rb') as f:
-        file_byte = f.read()
+def parse_args(args=None, namespace=None):
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-JA", type=str, default=r"E:\Dataset\FuckGalGame\ensemble\Golden Marriage\script")
+    parser.add_argument("-op", type=str, default=r'D:\AI\Audio_Tools\python\1.json')
+    return parser.parse_args(args=args, namespace=namespace)
+
+def text_cleaning(text):
+    text = re.sub(r'\{([^:]*):[^}]*\}', r'\1', text)
+    text = re.sub(r'%\w+', '', text)
+    text = text.replace('『', '').replace('』', '').replace('「', '').replace('」', '').replace('（', '').replace('）', '')
+    text = text.replace('　', '')
+    return text
+
+def main(JA_dir, op_json):
+    filelist = glob(f"{JA_dir}/**/*.ws2", recursive=True)
+    dialogue_start0 = False
+    dialogue_start1 = False
     results = []
-    for i in range(0, len(file_byte)):
-        if file_byte[i:i + 5] == b'\x28\x63\x68\x61\x72':
-            eng_name = []
-            for a in range(i + 5, len(file_byte)):
-                if file_byte[a] == 0:
-                    break
-                eng_name.append(file_byte[a])
-            eng_name = bytes(eng_name).decode('cp932')
-                
-            i = a + 1
-            audio = []
-            for a in range(i, len(file_byte)):
-                if file_byte[a] == 0:
-                    break
-                audio.append(file_byte[a])
-            audio = bytes(audio).decode('cp932')
-            
-            i = a + 1
-            speaker = []
-            for a in range(i, len(file_byte)):
-                if file_byte[a:a + 3] == b'\x25\x4c\x43' or file_byte[a:a + 3] == b'\x25\x4c\x46':
-                    while True:
-                        if file_byte[a + 3] == 0:
-                            break
-                        speaker.append(file_byte[a + 3])
-                        a += 1
-                    break
-            speaker = bytes(speaker).decode('cp932')
-            if speaker == '' or speaker == '？？？':
-                i = a + 4
-                continue
+    for filename in tqdm(filelist):
+        with open(filename, 'rb') as file:
+            data = file.read()
 
-            i = a + 4
-            text = []
-            for a in range(i, len(file_byte)):
-                if file_byte[a: a + 5] == b'\x63\x68\x61\x72\x00':
-                    while True:
-                        if file_byte[a + 5: a + 7] == b'\x25\x50' or file_byte[a + 5: a + 7] == b'\x25\x4b':
-                            break
-                        text.append(file_byte[a + 5])
-                        a += 1
-                    break
-            i = a + 6
-            text = bytes(text).decode('cp932')
-            text = re.sub(r'%XS..', '', text)
-            text = re.sub(r'\{[^:]*:([^}]*)\}', r'\1', text) # 用后面的换
-            if '・' in text:
-                text = re.sub(r'\{([^;]*);[^}]*\}', r'\1', text) # 用前面的换
+        i = 0
+        while i < len(data):
+            if data[i: i + 2] == b'\x2E\x28':
+                i += 2
+                segment = bytearray()
+                while i < len(data) and data[i] != 0:
+                    segment.append(data[i])
+                    i += 1
+                decoded_segment = segment.decode('cp932').replace('char', '')
+                Speaker_id = decoded_segment
+                i += 1
+                segment = bytearray()
+                while i < len(data) and data[i] != 0:
+                    segment.append(data[i])
+                    i += 1
+                decoded_segment = segment.decode('cp932').replace('OGG', 'ogg')
+                Voice = decoded_segment 
+                dialogue_start0 = True
 
-            text = re.sub(r'\{([^;]*);[^}]*\}', r'\1', text) # 用前面的换
+            if data[i: i + 4] == b'\x15\x25\x4C\x46' and dialogue_start0:
+                i += 4
+                segment = bytearray()
+                while i < len(data) and data[i] != 0:
+                    segment.append(data[i])
+                    i += 1
+                decoded_segment = segment.decode('cp932')
+                Speaker = decoded_segment
+                dialogue_start1 = True
 
-            text = re.sub(r'%XE|%K|「|」|『|』|（|）|\(|\)|\\n|　|', '', text)
-            if text == '':
-                print(f"Empty text found in {audio} from {file_path}")
+            if data[i: i + 4] == b'\x63\x68\x61\x72' and dialogue_start1:
+                i += 5  # Skip the sequence and one additional byte
+                segment = bytearray()
+                while i < len(data) and data[i] != 0:
+                    segment.append(data[i])
+                    i += 1
+                decoded_segment = segment.decode('cp932')
+                Text = text_cleaning(decoded_segment)
+                dialogue_start0 = False
+                dialogue_start1 = False
+                results.append((Speaker, Speaker_id, Voice, Text))
 
-            results.append({'audio': audio, 'speaker': speaker, 'text': text})
+            else:
+                i += 1
 
-    subdir_path = file_path.split('\\')[-2]
+    replace_dict = {}
+    for Speaker, Speaker_id, Voice, Text in tqdm(results):
+        if Speaker != '？？？' and Speaker_id not in replace_dict:
+            replace_dict[Speaker_id] = Speaker
 
-    for item in results:
-        if debug_mode:
-            debug_text = os.path.join(output_dir, f"{subdir_path}_debug.txt")
-            with open(debug_text, 'a', encoding='utf-8') as f:
-                f.write(f"{item['audio']}|{item['speaker']}|{item['text']}\n")
+    fixed_results = []
+    for Speaker, Speaker_id, Voice, Text in tqdm(results):
+        if Speaker == '？？？' and Speaker_id in replace_dict:
+            fixed_results.append((replace_dict[Speaker_id], Speaker_id, Voice, Text))
         else:
-            text_dir = os.path.join(output_dir, subdir_path, item['speaker'])
-            text_path = os.path.join(output_dir, subdir_path, item['speaker'], f"{item['audio'].replace('.ogg', '.txt')}")
-            os.makedirs(text_dir, exist_ok=True)
-            with open(text_path, 'w', encoding='utf-8') as f:
-                f.write(item['text'])
+            fixed_results.append((Speaker, Speaker_id, Voice, Text))
+
+    with open(op_json, mode='w', encoding='utf-8') as file:
+        seen = set()
+        json_data = []
+        for Speaker, Speaker_id, Voice, Text in fixed_results:
+            if (Speaker, Speaker_id, Voice, Text) not in seen:
+                seen.add((Speaker, Speaker_id, Voice, Text))
+                json_data.append({'Speaker': Speaker, 'Voice': Voice, 'Text': Text})
+        json.dump(json_data, file, ensure_ascii=False, indent=4)
 
 if __name__ == '__main__':
-    input_dir = r"E:\Dataset\FuckGalGame\ensemble"
-    output_dir = r"C:\Users\bfloat16\Desktop"
-    debug_mode = True
-    
-    file_paths = glob(f"{input_dir}/**/*.ws2", recursive=True)
-
-    for file_path in file_paths:
-        main(file_path, output_dir, debug_mode=debug_mode)
+    args = parse_args()
+    main(args.JA, args.op)  
