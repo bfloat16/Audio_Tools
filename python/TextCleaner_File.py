@@ -3,27 +3,22 @@ import json
 import shutil
 from tqdm import tqdm
 
-# 读取JSON文件
 input_json_filepath = r'D:\AI\Audio_Tools\python\1.json'
-source_folder = r"E:\Dataset\FuckGalGame\ensemble\Golden Marriage\voice"
-output_folder = r"C:\Users\bfloat16\Desktop\ensemble_Golden Marriage"
+source_folder = r"E:\Dataset\FuckGalGame\Makura\Sakura no Toki -Sakura no Mori no Shita o Ayumu-\voice"
+output_folder = r"C:\Users\bfloat16\Desktop\GAL\Makura_Sakura no Toki -Sakura no Mori no Shita o Ayumu-"
 
-# 读取JSON文件数据
 with open(input_json_filepath, 'r', encoding='utf-8') as file:
     dialogues = json.load(file)
 
-# 创建文件名到路径的映射，忽略大小写
 file_mapping = {}
 for root, _, files in os.walk(source_folder):
     for filename in files:
         name, ext = os.path.splitext(filename)
         file_mapping[name.lower()] = os.path.join(root, filename)
 
-# 创建输出文件夹
 if not os.path.exists(output_folder):
     os.makedirs(output_folder)
 
-# 处理对话数据，查找并复制文件
 output_data = []
 for dialogue in tqdm(dialogues):
     voice = dialogue['Voice']

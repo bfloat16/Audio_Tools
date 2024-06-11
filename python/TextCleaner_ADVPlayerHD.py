@@ -6,15 +6,15 @@ from tqdm import tqdm
 
 def parse_args(args=None, namespace=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument("-JA", type=str, default=r"E:\Dataset\FuckGalGame\ensemble\Golden Marriage\script")
+    parser.add_argument("-JA", type=str, default=r"E:\Dataset\FuckGalGame\PULLTOP\Miagete Goran, Yozora no Hoshi o\script")
     parser.add_argument("-op", type=str, default=r'D:\AI\Audio_Tools\python\1.json')
     return parser.parse_args(args=args, namespace=namespace)
 
 def text_cleaning(text):
-    text = re.sub(r'\{([^:]*):[^}]*\}', r'\1', text)
+    text = re.sub(r'\{([^:]*):[^}]*\}|\{(.*?);.*?\}', r'\1', text)
     text = re.sub(r'%\w+', '', text)
     text = text.replace('『', '').replace('』', '').replace('「', '').replace('」', '').replace('（', '').replace('）', '')
-    text = text.replace('　', '')
+    text = text.replace('　', '').replace('\\n', '')
     return text
 
 def main(JA_dir, op_json):
@@ -42,17 +42,17 @@ def main(JA_dir, op_json):
                     segment.append(data[i])
                     i += 1
                 decoded_segment = segment.decode('cp932').replace('OGG', 'ogg')
-                Voice = decoded_segment 
+                Voice = decoded_segment
                 dialogue_start0 = True
 
-            if data[i: i + 4] == b'\x15\x25\x4C\x46' and dialogue_start0:
+            if data[i: i + 2] == b'\x15\x25' and dialogue_start0:
                 i += 4
                 segment = bytearray()
                 while i < len(data) and data[i] != 0:
                     segment.append(data[i])
                     i += 1
                 decoded_segment = segment.decode('cp932')
-                Speaker = decoded_segment
+                Speaker = text_cleaning(decoded_segment)
                 dialogue_start1 = True
 
             if data[i: i + 4] == b'\x63\x68\x61\x72' and dialogue_start1:
@@ -72,12 +72,12 @@ def main(JA_dir, op_json):
 
     replace_dict = {}
     for Speaker, Speaker_id, Voice, Text in tqdm(results):
-        if Speaker != '？？？' and Speaker_id not in replace_dict:
+        if Speaker != '？？？' and Speaker != '' and Speaker_id not in replace_dict:
             replace_dict[Speaker_id] = Speaker
 
     fixed_results = []
     for Speaker, Speaker_id, Voice, Text in tqdm(results):
-        if Speaker == '？？？' and Speaker_id in replace_dict:
+        if (Speaker == '？？？' or Speaker == '') and Speaker_id in replace_dict:
             fixed_results.append((replace_dict[Speaker_id], Speaker_id, Voice, Text))
         else:
             fixed_results.append((Speaker, Speaker_id, Voice, Text))

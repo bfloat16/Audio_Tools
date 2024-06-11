@@ -7,7 +7,7 @@ from glob import glob
 
 def parse_args(args=None, namespace=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument("-JA", type=str, default=r"E:\Dataset\FuckGalGame\ASa Project\Koibana Ren'ai - Mini Fandisk - After Festival\script")
+    parser.add_argument("-JA", type=str, default=r"E:\Dataset\FuckGalGame\ASa Project\Puramai Wars\script")
     parser.add_argument("-op", type=str, default=r'D:\AI\Audio_Tools\python\1.json')
     parser.add_argument("-ft", type=int, default=1)
     return parser.parse_args(args=args, namespace=namespace)
