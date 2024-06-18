@@ -1,13 +1,13 @@
 import re
+import os
 import json
 import zlib
 import argparse
 from tqdm import tqdm
-from glob import glob
 
 def parse_args(args=None, namespace=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument("-JA", type=str, default=r"E:\Dataset\FuckGalGame\Windmill Oasis\Wizards Complex\script")
+    parser.add_argument("-JA", type=str, default=r"E:\Dataset\FuckGalGame\Windmill Oasis\Witch's Garden\script")
     parser.add_argument("-op", type=str, default=r'D:\AI\Audio_Tools\python\1.json')
     return parser.parse_args(args=args, namespace=namespace)
 
@@ -29,7 +29,11 @@ def decompress(file_path):
                 return decompressed_data
 
 def main(JA_dir, op_json):
-    filelist = glob(f"{JA_dir}/**/*.cst", recursive=True)
+    filelist = []
+    for root, dirs, files in os.walk(JA_dir):
+        for file in files:
+            if file.endswith(".cst"):
+                filelist.append(os.path.join(root, file))
     results = []
 
     for filename in tqdm(filelist):

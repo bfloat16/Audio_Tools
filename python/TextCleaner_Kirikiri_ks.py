@@ -1,23 +1,15 @@
 import re
 import json
-import chardet
 import argparse
 from tqdm import tqdm
 from glob import glob
 
 def parse_args(args=None, namespace=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument("-JA", type=str, default=r"E:\Dataset\FuckGalGame\ASa Project\Puramai Wars\script")
+    parser.add_argument("-JA", type=str, default=r"E:\Dataset\FuckGalGame\Sphere\Yosuga no Sora\script")
     parser.add_argument("-op", type=str, default=r'D:\AI\Audio_Tools\python\1.json')
-    parser.add_argument("-ft", type=int, default=1)
+    parser.add_argument("-ft", type=int, default=2)
     return parser.parse_args(args=args, namespace=namespace)
-
-def guess_encoding(file_path):
-    with open(file_path, 'rb') as file:
-        raw_data = file.read()
-    result = chardet.detect(raw_data)
-    encoding = result['encoding']
-    return encoding
 
 def text_cleaning_01(text):
     text = re.sub(r"\[([^\]]+?)'[^]]+\]", r'\1', text)
@@ -32,14 +24,14 @@ def text_cleaning_01(text):
 def text_cleaning_02(text):
     text = re.sub(r'\[.*?\]', '', text)
     text = text.replace('『', '').replace('』', '').replace('「', '').replace('」', '').replace('（', '').replace('）', '')
-    text = text.replace('　', '')
+    text = text.replace('　', '').replace('／', '')
     return text
 
 def main(JA_dir, op_json, force_type):
     filelist = glob(f"{JA_dir}/**/*.ks", recursive=True)
     results = []
     for filename in tqdm(filelist):
-        with open(filename, 'r', encoding=guess_encoding(filename)) as file:
+        with open(filename, 'r', encoding='cp932') as file:
             lines = file.readlines()
         lines = [line.strip() for line in lines]
         for i, line in enumerate(lines):
@@ -92,6 +84,21 @@ def main(JA_dir, op_json, force_type):
                     Text = lines[i + 1]
                     Text = text_cleaning_02(Text)
                     results.append((Speaker, Voice, Text))
+
+            if force_type == 2:
+                match = re.findall(r'@Talk\s+name=(.*?)\s+voice=(.*?)(?=\s|$)', line)
+                if match:
+                    Speaker, Voice = match[0]
+                    Speaker = Speaker.split('/')[0]
+                    tmp_result = []
+                    for j in range(i + 1, len(lines)):
+                        if lines[j].startswith('@'):
+                            Text = ''.join(tmp_result)
+                            Text = text_cleaning_02(Text)
+                            results.append((Speaker, Voice, Text))
+                            break
+                        else:
+                            tmp_result.append(lines[j])
 
     with open(op_json, mode='w', encoding='utf-8') as file:
         seen = set()

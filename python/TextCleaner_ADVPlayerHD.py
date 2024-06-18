@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 def parse_args(args=None, namespace=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument("-JA", type=str, default=r"E:\Dataset\FuckGalGame\PULLTOP\Miagete Goran, Yozora no Hoshi o\script")
+    parser.add_argument("-JA", type=str, default=r"E:\Dataset\FuckGalGame\PULLTOP\Pure Song Garden!\script")
     parser.add_argument("-op", type=str, default=r'D:\AI\Audio_Tools\python\1.json')
     return parser.parse_args(args=args, namespace=namespace)
 

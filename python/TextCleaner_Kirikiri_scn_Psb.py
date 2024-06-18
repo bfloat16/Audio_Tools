@@ -12,7 +12,7 @@ def main(file_path):
         print(f"Error decompiling {file_path}: {e}")
 
 if __name__ == '__main__':
-    input_directory_path = r"E:\Dataset\FuckGalGame\Lose\Maitetsu - Last Run!!\script"
+    input_directory_path = r"E:\Dataset\FuckGalGame\Purple software\Criminal Border 3rd offence\script"
     file_paths = glob.glob(os.path.join(input_directory_path, '*'))
     for file_path in file_paths:
         main(file_path)

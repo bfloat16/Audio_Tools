@@ -4,8 +4,8 @@ import shutil
 from tqdm import tqdm
 
 input_json_filepath = r'D:\AI\Audio_Tools\python\1.json'
-source_folder = r"E:\Dataset\FuckGalGame\Makura\Sakura no Toki -Sakura no Mori no Shita o Ayumu-\voice"
-output_folder = r"C:\Users\bfloat16\Desktop\GAL\Makura_Sakura no Toki -Sakura no Mori no Shita o Ayumu-"
+source_folder = r"E:\Dataset\FuckGalGame\Lump of Sugar\Animal☆Panic\voice"
+output_folder = r"C:\Users\bfloat16\Desktop\GAL\Lump of Sugar_Animal☆Panic"
 
 with open(input_json_filepath, 'r', encoding='utf-8') as file:
     dialogues = json.load(file)

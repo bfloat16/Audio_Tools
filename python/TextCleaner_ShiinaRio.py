@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 def parse_args(args=None, namespace=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument("-JA", type=str, default=r"E:\Dataset\FuckGalGame\ensemble\Hana to Otome ni Shukufuku o -Royal Bouquet-\script")
+    parser.add_argument("-JA", type=str, default=r"E:\Dataset\FuckGalGame\Qruppo\Nukige Mitai na Shima ni Sunderu Watashi wa Dou Surya Ii Desu ka 2\script")
     parser.add_argument("-op", type=str, default=r'D:\AI\Audio_Tools\python\1.json')
     return parser.parse_args(args=args, namespace=namespace)
 
@@ -30,7 +30,7 @@ def main(JA_dir, op_json):
                 i += 1
                 continue
 
-            voice_match = re.compile(r'\$VOICE,v\\(\w+\.ogv),0').search(lines[i])
+            voice_match = re.compile(r'\$VOICE,v\\(\w+\.ogg)').search(lines[i])
             if voice_match:
                 Voice = voice_match.group(1).replace('ogv', 'ogg')
                 Speaker_id = Voice.split('_')[0]
@@ -44,6 +44,7 @@ def main(JA_dir, op_json):
                     speaker_match = re.compile(r'【([^】]+)】').search(lines[i])
                     if speaker_match:
                         Speaker = speaker_match.group(1)
+                        Speaker = Speaker.split('/')[0]
                         i += 1
 
                         text_lines = []

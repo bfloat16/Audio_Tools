@@ -1,34 +1,48 @@
 import argparse
 from glob import glob
-from pydub import AudioSegment
+from mutagen.wave import WAVE
+from mutagen.oggvorbis import OggVorbis
+from mutagen.oggopus import OggOpus
 from concurrent.futures import ProcessPoolExecutor
 from rich.progress import Progress, BarColumn, TextColumn, TimeElapsedColumn, TimeRemainingColumn, MofNCompleteColumn
+
 rich_progress = Progress(TextColumn("Running: "), BarColumn(), "[progress.percentage]{task.percentage:>3.1f}%", "•", MofNCompleteColumn(), "•", TimeElapsedColumn(), "|", TimeRemainingColumn())
 
-def ms_to_time(ms):
-    total_seconds = ms / 1000
+def sec_to_time(total_seconds):
     hours = total_seconds // 3600
     minutes = (total_seconds % 3600) // 60
     seconds = total_seconds % 60
     return int(hours), int(minutes), seconds
 
 def calculate_durations(filenames):
-    total_duration_ms = 0
-    max_duration_ms = 0
-    min_duration_ms = float('inf')
-    with rich_progress:
-        task2 = rich_progress.add_task("Process", total=len(filenames))
+    total_duration_sec = 0
+    max_duration_sec = 0
+    min_duration_sec = float('inf')
+    
+    with Progress() as rich_progress:
+        task2 = rich_progress.add_task("Processing", total=len(filenames))
+        
         for filename in filenames:
             try:
-                audio = AudioSegment.from_file(filename)
-                file_duration_ms = len(audio)
-                total_duration_ms += file_duration_ms
-                max_duration_ms = max(max_duration_ms, file_duration_ms)
-                min_duration_ms = min(min_duration_ms, file_duration_ms)
+                if filename.endswith('.wav'):
+                    audio = WAVE(filename)
+                elif filename.endswith('.ogg'):
+                    audio = OggVorbis(filename)
+                elif filename.endswith('.opus'):
+                    audio = OggOpus(filename)
+                else:
+                    raise ValueError(f"Unsupported file format: {filename}")
+                
+                file_duration_sec = audio.info.length  # Duration in seconds
+                total_duration_sec += file_duration_sec
+                max_duration_sec = max(max_duration_sec, file_duration_sec)
+                min_duration_sec = min(min_duration_sec, file_duration_sec)
                 rich_progress.update(task2, advance=1)
+            
             except Exception as e:
                 print(f"Error processing {filename}: {e}")
-    return total_duration_ms, max_duration_ms, min_duration_ms
+    
+    return total_duration_sec, max_duration_sec, min_duration_sec
 
 def parallel_process(filenames, num_processes):
     results = []
@@ -39,10 +53,10 @@ def parallel_process(filenames, num_processes):
     return results
 
 def aggregate_results(results):
-    total_duration_ms = sum(result[0] for result in results)
-    max_duration_ms = max(result[1] for result in results)
-    min_duration_ms = min(result[2] for result in results if result[2] != float('inf')) # Avoiding inf if possible
-    return ms_to_time(total_duration_ms), ms_to_time(max_duration_ms), ms_to_time(min_duration_ms)
+    total_duration_sec = sum(result[0] for result in results)
+    max_duration_sec = max(result[1] for result in results)
+    min_duration_sec = min(result[2] for result in results if result[2] != float('inf'))  # Avoiding inf if possible
+    return sec_to_time(total_duration_sec), sec_to_time(max_duration_sec), sec_to_time(min_duration_sec)
 
 def main(in_dir, num_processes):
     print('Loading audio files...')
@@ -67,7 +81,7 @@ def main(in_dir, num_processes):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--in_dir", type=str, default=r"C:\Users\bfloat16\Desktop\WutheringWaves_CHS")
+    parser.add_argument("--in_dir", type=str, default=r"D:\Galgame_Dataset_unpack")
     parser.add_argument('--num_processes', type=int, default=10)
     args = parser.parse_args()
 

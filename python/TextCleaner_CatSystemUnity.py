@@ -1,11 +1,19 @@
-import os
 import re
 import zlib
+import json
 import struct
+import argparse
 from glob import glob
+from tqdm import tqdm
 
 global pos
 pos = 0
+
+def parse_args(args=None, namespace=None):
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-JA", type=str, default=r"E:\Dataset\FuckGalGame\Archive\Unravel trigger\script")
+    parser.add_argument("-op", type=str, default=r'D:\AI\Audio_Tools\python\1.json')
+    return parser.parse_args(args=args, namespace=namespace)
 
 def uncompress_cstx(filename):
     CSTXSig = b'CSTX'
@@ -64,78 +72,68 @@ def read_string(data):
     pos += length
     return str
 
-def main(file_path, output_dir=None, debug_mode=False):
-    global pos
-    pos = 0
-    tmp_results = []
-    data = uncompress_cstx(file_path)
-    chunk_num = read_chunk_num(data)
-    if chunk_num > 0:
-        for i in range(chunk_num):
-            string_num = read_string_num(data)
-            for j in range(string_num):
-                string = read_string(data)
-                if not string.startswith("//"):
-                    tmp_results.append(string)
+def main(JA_dir, op_json):
+    filelist = glob(f"{JA_dir}/**/*.cstx", recursive=True)
+    results = []
 
-        with open("tmp.txt", "a", encoding="utf-8") as f:
-            f.write(f"{file_path}\n")
-            for item in tmp_results:
-                f.write(f"{item}\n")
-        a = 0
-        b = 0
-        is_header = False
-        results = []
-        while a < len(tmp_results):
-            if tmp_results[a].startswith("\tpcm") and "end" not in tmp_results[a] and "rdraw" not in tmp_results[a]:
-                tmp_audio = []
-                tmp_speaker = []
-                for b in range(a, len(tmp_results)):
-                    if tmp_results[b].startswith("\tpcm"):
-                        tmp_audio.append(tmp_results[b])
+    for filename in tqdm(filelist):
+        global pos
+        pos = 0
+        tmp_results = []
+        data = uncompress_cstx(filename)
+        chunk_num = read_chunk_num(data)
+        if chunk_num > 0:
+            for i in range(chunk_num):
+                string_num = read_string_num(data)
+                for j in range(string_num):
+                    string = read_string(data)
+                    if not string.startswith("//"):
+                        tmp_results.append(string)
+            a = 0
+            b = 0
+            is_header = False
+            while a < len(tmp_results):
+                if tmp_results[a].startswith("\tpcm") and "end" not in tmp_results[a] and "rdraw" not in tmp_results[a]:
+                    tmp_audio = []
+                    tmp_speaker = []
+                    for b in range(a, len(tmp_results)):
+                        if tmp_results[b].startswith("\tpcm"):
+                            tmp_audio.append(tmp_results[b])
 
-                    elif not tmp_results[b].startswith("\t") and tmp_results[b] != "":
-                        tmp_speaker = re.split('[＆＠]', tmp_results[b])[:b - a]
+                        elif not tmp_results[b].startswith("\t") and tmp_results[b] != "":
+                            tmp_speaker = re.split('[＆＠]', tmp_results[b])[:b - a]
 
-                    elif tmp_results[b].startswith("\t"):
-                        text = ""
-                        while tmp_results[b].startswith("\t"):
-                            text += tmp_results[b]
-                            if '\\@' in tmp_results[b]:
+                        elif tmp_results[b].startswith("\t"):
+                            Text = ""
+                            while tmp_results[b].startswith("\t") and not re.match(r'(?<!\\)＠', tmp_results[b]):
+                                Text += tmp_results[b]
+                                if '\\@' in tmp_results[b]:
+                                    b += 1
+                                    break
                                 b += 1
-                                break
-                            b += 1
-                        break
+                            break
 
-                for tmp_audio, tmp_speaker in zip(tmp_audio, tmp_speaker):
-                    tmp_audio = tmp_audio.replace("\tpcm ", "")
-                    text = text.replace("\t", "").replace("\\@", "").replace("　", "").replace("「", "").replace("」", "").replace("『", "").replace("』", "")
-                    results.append({"audio": tmp_audio, "speaker": tmp_speaker, "text": text})
-                a = b
-            a += 1
+                    for tmp_audio, tmp_speaker in zip(tmp_audio, tmp_speaker):
+                        tmp_audio = tmp_audio.replace("\tpcm ", "")
+                        Text = Text.replace("\t", "").replace("\\@", "").replace("　", "").replace("「", "").replace("」", "").replace("『", "").replace("』", "")
+                        if tmp_audio == 'SOP_5_13_01_007':
+                            pass
+                        results.append((tmp_audio, tmp_speaker, Text))
+                    a = b
+                a += 1
 
-        is_header = False
+            is_header = False
 
-        subdir_path = file_path.split('\\')[-2]
+    with open(op_json, mode='w', encoding='utf-8') as file:
+        seen = set()
+        json_data = []
+        for Speaker, Voice, Text in results:
+            record = (Speaker, Voice, Text)
+            if record not in seen:
+                seen.add(record)
+                json_data.append({'Speaker': Speaker, 'Voice': Voice, 'Text': Text})
+        json.dump(json_data, file, ensure_ascii=False, indent=4)
 
-        for item in results:
-            if debug_mode:
-                debug_text = os.path.join(output_dir, f"{subdir_path}_debug.txt")
-                with open(debug_text, 'a', encoding='utf-8') as f:
-                    f.write(f"{item['audio']}|{item['speaker']}|{item['text']}\n")
-            else:
-                text_dir = os.path.join(output_dir, subdir_path, item['speaker'])
-                text_path = os.path.join(output_dir, subdir_path, item['speaker'], f"{item['audio'].replace('.ogg', '.txt')}")
-                os.makedirs(text_dir, exist_ok=True)
-                with open(text_path, 'w', encoding='utf-8') as f:
-                    f.write(item['text'])
-
-if __name__ == "__main__":
-    input_dir = r"E:\sdsdsds"
-    output_dir = r"E:"
-    debug_mode = True
-    
-    file_paths = glob(f"{input_dir}/**/*.cstx", recursive=True)
-
-    for file_path in file_paths:
-        main(file_path, output_dir, debug_mode=debug_mode)
+if __name__ == '__main__':
+    args = parse_args()
+    main(args.JA, args.op)

@@ -1,6 +1,21 @@
-import os
+import re
+import json
 import struct
+import argparse
 from glob import glob
+from tqdm import tqdm
+
+def parse_args(args=None, namespace=None):
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-JA", type=str, default=r"E:\Dataset\FuckGalGame\Purple software\Hapymaher -Fragmentation Dream- RE\script")
+    parser.add_argument("-op", type=str, default=r'D:\AI\Audio_Tools\python\1.json')
+    return parser.parse_args(args=args, namespace=namespace)
+
+def text_cleaning(text):
+    text = re.sub(r"\{([^\s/]+)/[^\s/]+\}", r"\1", text)
+    text = text.replace('『', '').replace('』', '').replace('「', '').replace('」', '').replace('（', '').replace('）', '')
+    text = text.replace('\\n', '').replace('\\t', '')
+    return text
 
 def lzss(CompressData, CompressSize):
     curbyte = 0
@@ -42,89 +57,94 @@ def lzss(CompressData, CompressSize):
     return DeCompressData
 
 # 0 PS2A 4 HeadSize 8 Unknown 12 SeedKey 16 LabelCount 20 CodeSegSize 24 Unknown 28 TextSegSize 32 BegPC 36 CompressSize 40 DeCompressSize 44 Unknown 48 CompressData......
-def main(file_path, output_dir, debug_mode=False):
-    with open(file_path, 'rb') as f:
-        header = f.read(4).decode()
-        if header != 'PS2A':
-            raise ValueError('Invalid file header')
-        HeadSize, Unknown0, SeedKey, LabelCount, CodeSegSize, UnknownSegSize, TextSegSize, BegPC, CompressSize, DeCompressSize, Unknown2 = struct.unpack('<11I', f.read(44))
-        CompressData = bytearray(f.read(CompressSize))
+def main(JA_dir, op_json):
+    filelist = glob(f"{JA_dir}/**/*.ps3", recursive=True)
+    results = []
+    for filename in tqdm(filelist):
+        with open(filename, 'rb') as f:
+            header = f.read(4).decode()
+            if header != 'PS2A':
+                raise ValueError('Invalid file header')
+            HeadSize, Unknown0, SeedKey, LabelCount, CodeSegSize, UnknownSegSize, TextSegSize, BegPC, CompressSize, DeCompressSize, Unknown2 = struct.unpack('<11I', f.read(44))
+            CompressData = bytearray(f.read(CompressSize))
 
-        print(f'File:{os.path.basename(file_path):<15}|HeadSize: {HeadSize:<3}|Unknown0: {Unknown0:<9}|SeedKey: {SeedKey:<11}|LabelCount: {LabelCount:<4}|CodeSegSize: {CodeSegSize:<8}|UnknownSegSize: {UnknownSegSize:<4}|TextSegSize: {TextSegSize:<6}|BegPC: {BegPC:<7}|CompressSize: {CompressSize:<7}|DeCompressSize: {DeCompressSize:<7}|Unknown2: {Unknown2:<2}')
-                
-        xor = ((SeedKey >> 24) + (SeedKey >> 3)) & 0xFF
-        shifts = ((SeedKey >> 20) % 5) + 1
+            xor = ((SeedKey >> 24) + (SeedKey >> 3)) & 0xFF
+            shifts = ((SeedKey >> 20) % 5) + 1
 
-        for i in range(CompressSize):
-            tmp = ((CompressData[i] - 0x7c) & 0xFF) ^ xor
-            CompressData[i] = ((tmp >> shifts) | (tmp << (8 - shifts))) & 0xFF
-        lzss_data = bytearray(lzss(CompressData, CompressSize))
+            for i in range(CompressSize):
+                tmp = ((CompressData[i] - 0x7c) & 0xFF) ^ xor
+                CompressData[i] = ((tmp >> shifts) | (tmp << (8 - shifts))) & 0xFF
+            lzss_data = bytearray(lzss(CompressData, CompressSize))
 
-        label_table_offset = 0
-        code_seg_offset = LabelCount * 4
-        unkonw_offset = code_seg_offset + CodeSegSize
-        text_seg_offset = unkonw_offset + UnknownSegSize
-        
-        results = []
-        tmp_result = []
-        is_speaker = False
-        for i in range(len(lzss_data)):
-            command_bytes = lzss_data[i:i+4]
-            if command_bytes == b'\x01\x02\x20\x01':
-                if i + 8 < len(lzss_data):
-                    offset_bytes = lzss_data[i+4:i+8]
-                    check_bytes = lzss_data[i+8:i+12]
-                    if check_bytes == b'\x0f\x02\x30\x04':
-                        offset = struct.unpack('<I', offset_bytes)[0]
-                        text_ptr = text_seg_offset + offset
-                        text = []
-                        while lzss_data[text_ptr] != 0x00:
-                            text.append(lzss_data[text_ptr])
-                            text_ptr += 1
-                        tmp_result.append(bytes(text).decode('cp932'))
-                        if is_speaker:
-                            try:
-                                speaker = tmp_result[-1]
-                                audio = tmp_result[-2]
-                                text = tmp_result[-3]
-                                substrings = ['.ogg', '.wav', '.mv2', '.pb3', '.pb2', '.ps3', '.ps2', '.cur', '.cmv', '.mgv']
-                                if all(sub not in speaker for sub in substrings) and all(sub not in text for sub in substrings) and ".ogg" in audio:
-                                    results.append({'speaker': speaker, 'audio': audio, 'text': text})
-                                    print(f"Speaker: {speaker:<15}, Audio: {audio:<17}, Text: {text}")
+            label_table_offset = 0
+            code_seg_offset = LabelCount * 4
+            unkonw_offset = code_seg_offset + CodeSegSize
+            text_seg_offset = unkonw_offset + UnknownSegSize
+            
+            tmp_result = []
+            is_speaker = False
+            for i in range(len(lzss_data)):
+                command_bytes = lzss_data[i:i+4]
+                if command_bytes == b'\x01\x02\x20\x01':
+                    if i + 8 < len(lzss_data):
+                        offset_bytes = lzss_data[i+4:i+8]
+                        check_bytes = lzss_data[i+8:i+12]
+                        if check_bytes == b'\x0f\x02\x30\x04':
+                            offset = struct.unpack('<I', offset_bytes)[0]
+                            text_ptr = text_seg_offset + offset
+                            Text = []
+                            while lzss_data[text_ptr] != 0x00:
+                                Text.append(lzss_data[text_ptr])
+                                text_ptr += 1
+                            tmp_result.append(bytes(Text).decode('cp932'))
+                            if is_speaker:
+                                try:
+                                    Speaker = tmp_result[-1]
+                                    Voice = tmp_result[-2]
+                                    Text = tmp_result[-3]
+                                    substrings = ['.ogg', '.wav', '.mv2', '.pb3', '.pb2', '.ps3', '.ps2', '.cur', '.cmv', '.mgv']
+                                    if all(sub not in Speaker for sub in substrings) and all(sub not in Text for sub in substrings) and ".ogg" in Voice:
+                                        Text = text_cleaning(Text)
+                                        Speaker_id = re.findall(r'^[a-zA-Z]+', Voice)[0]
+                                        Speaker = Speaker.replace('　', '').replace('？', '')
+                                        if not Speaker:
+                                            continue
+                                        results.append((Speaker, Speaker_id, Voice, Text))
+                                        tmp_result = []
+                                        is_speaker = False
+                                except:
                                     tmp_result = []
                                     is_speaker = False
-                            except:
-                                tmp_result = []
-                                is_speaker = False
 
-                        if tmp_result is not None and len(tmp_result) > 0:
-                            if ".ogg" in tmp_result[-1]:
-                                is_speaker = True
-                    else:
-                        continue
-            else:
-                continue
+                            if tmp_result is not None and len(tmp_result) > 0:
+                                if ".ogg" in tmp_result[-1]:
+                                    is_speaker = True
+                        else:
+                            continue
+                else:
+                    continue
 
-        subdir_path = file_path.split('\\')[-2]
+    replace_dict = {}
+    for Speaker, Speaker_id, Voice, Text in tqdm(results):
+        if Speaker != '？？？' and Speaker_id not in replace_dict:
+            replace_dict[Speaker_id] = Speaker
 
-        for item in results:
-            if debug_mode:
-                debug_text = os.path.join(output_dir, f"{subdir_path}_debug.txt")
-                with open(debug_text, 'a', encoding='utf-8') as f:
-                    f.write(f"{item['audio']}|{item['speaker']}|{item['text']}\n")
-            else:
-                text_dir = os.path.join(output_dir, subdir_path, item['speaker'])
-                text_path = os.path.join(output_dir, subdir_path, item['speaker'], f"{item['audio'].replace('.ogg', '.txt')}")
-                os.makedirs(text_dir, exist_ok=True)
-                with open(text_path, 'w', encoding='utf-8') as f:
-                    f.write(item['text'])
+    fixed_results = []
+    for Speaker, Speaker_id, Voice, Text in tqdm(results):
+        if Speaker == '？？？' and Speaker_id in replace_dict:
+            fixed_results.append((replace_dict[Speaker_id], Speaker_id, Voice, Text))
+        else:
+            fixed_results.append((Speaker, Speaker_id, Voice, Text))
+
+    with open(op_json, mode='w', encoding='utf-8') as file:
+        seen = set()
+        json_data = []
+        for Speaker, Speaker_id, Voice, Text in fixed_results:
+            if (Speaker, Speaker_id, Voice, Text) not in seen:
+                seen.add((Speaker, Speaker_id, Voice, Text))
+                json_data.append({'Speaker': Speaker, 'Voice': Voice, 'Text': Text})
+        json.dump(json_data, file, ensure_ascii=False, indent=4)
 
 if __name__ == '__main__':
-    input_dir = r"E:\Dataset\FuckGalGame\Purple software"
-    output_dir = r"C:\Users\bfloat16\Desktop\CMVS"
-    debug_mode = True
-    
-    file_paths = glob(f"{input_dir}/**/*.ps3", recursive=True)
-
-    for file_path in file_paths:
-        main(file_path, output_dir, debug_mode=debug_mode)
+    args = parse_args()
+    main(args.JA, args.op)
