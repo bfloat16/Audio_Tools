@@ -262,7 +262,13 @@ if __name__ == "__main__":
                     try:
                         Speaker = spk[voice.split('_')[0].lower()]
                     except:
-                        Speaker = tmp_speaker
+                        try:
+                            match = re.match(r'^([a-zA-Z]+)\d+$', voice)
+                            prefix = match.group(1).lower()
+                            Speaker = spk[prefix]
+                        except:
+                            Speaker = tmp_speaker
+                            
                     results.append((Speaker, voice, Text))
                 tmp_voice.clear()
                 tmp_speaker = None
