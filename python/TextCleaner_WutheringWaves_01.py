@@ -8,14 +8,14 @@ from tqdm import tqdm
 
 def parse_args(args=None, namespace=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument("-fl", type=str, default=r"D:\Wuthering Waves\Content\Paks\pakchunk10-WindowsNoEditor\Client\Content\Aki\ConfigDB\db_flowState.db")
-    parser.add_argument("-la", type=str, default=r"D:\Wuthering Waves\Content\Paks\pakchunk10-WindowsNoEditor\Client\Content\Aki\ConfigDB\en\lang_multi_text.db")
-    parser.add_argument("-fa", type=str, default=r"D:\Wuthering Waves\Content\Paks\pakchunk10-WindowsNoEditor\Client\Content\Aki\ConfigDB\db_favor.db")
+    parser.add_argument("-fl", type=str, default=r"D:\Wuthering Waves\pakchunk10-WindowsNoEditor\Client\Content\Aki\ConfigDB\db_flowState.db")
+    parser.add_argument("-la", type=str, default=r"D:\Wuthering Waves\pakchunk10-WindowsNoEditor\Client\Content\Aki\ConfigDB\ko\lang_multi_text.db")
+    parser.add_argument("-fa", type=str, default=r"D:\Wuthering Waves\pakchunk10-WindowsNoEditor\Client\Content\Aki\ConfigDB\db_favor.db")
 
-    parser.add_argument("-au", type=str, default=r"D:\Wuthering Waves\Saved\Resources\1.0.0\Resource_en")
-    parser.add_argument("-op", type=str, default=r"D:\AI\Audio_Tools\python\WutheringWaves_EN_index.json")
+    parser.add_argument("-au", type=str, default=r"D:\Wuthering Waves\Resource_ko")
+    parser.add_argument("-op", type=str, default=r"D:\AI\Audio_Tools\python\WutheringWaves_KO_index.json")
 
-    parser.add_argument("-md", type=str, default="EN") # CHS, CHT, EN, JA, KR
+    parser.add_argument("-md", type=str, default="KO") # CHS, CHT, EN, JA, KO
     return parser.parse_args(args=args, namespace=namespace)
 
 def text_cleaning(text):
@@ -24,7 +24,7 @@ def text_cleaning(text):
         text = text.replace('{PlayerName}', '漂泊者')
     elif mode == "EN":
         text = text.replace('{PlayerName}', 'Rover')
-    elif mode == "KR":
+    elif mode == "KO":
         text = text.replace('{PlayerName}', '방랑자')
     text = text.replace('（', '').replace('）', '').replace('(', '').replace(')', '').replace('「', '').replace('」', '').replace('"', '')
     text = text.replace('\r', '').replace('\n', '')
@@ -52,7 +52,7 @@ def name_mappping(id):
         elif id == 83 or id == 354:
             return ["Rover_male", "Rover_female"]
         
-    elif mode == "KR":
+    elif mode == "KO":
         if id == 1501 or id == 1604:
             return "방랑자_남성"
         elif id == 1502 or id == 1605:

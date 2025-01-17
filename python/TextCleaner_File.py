@@ -4,8 +4,8 @@ import shutil
 from tqdm import tqdm
 
 input_json_filepath = r'D:\AI\Audio_Tools\python\1.json'
-source_folder = r"E:\Dataset\FuckGalGame\Lump of Sugar\Animal☆Panic\voice"
-output_folder = r"C:\Users\bfloat16\Desktop\GAL\Lump of Sugar_Animal☆Panic"
+source_folder = r"E:\Dataset\FuckGalGame\Us track\Koi x Shin Ai Kanojo"
+output_folder = r"C:\Users\bfloat16\Desktop\GAL\Us track_Koi x Shin Ai Kanojo"
 
 with open(input_json_filepath, 'r', encoding='utf-8') as file:
     dialogues = json.load(file)
@@ -24,7 +24,7 @@ for dialogue in tqdm(dialogues):
     voice = dialogue['Voice']
     name, ext = os.path.splitext(voice)
     name = name.lower()  # 忽略大小写
-    if name in file_mapping:
+    if name in file_mapping:    
         src_path = file_mapping[name]
         
         # 创建以Speaker命名的子文件夹

@@ -6,9 +6,9 @@ from tqdm import tqdm
 
 def parse_args(args=None, namespace=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument("-JA", type=str, default=r"E:\Dataset\FuckGalGame\Purple software\Criminal Border 3rd offence\script")
-    parser.add_argument("-op", type=str, default=r'D:\AI\Audio_Tools\python\1.json')
-    parser.add_argument("-ft", type=int, default=0)
+    parser.add_argument("-JA", type=str, default=r"D:\Fuck_galgame\scn")
+    parser.add_argument("-op", type=str, default=r'D:\Fuck_galgame\index.json')
+    parser.add_argument("-ft", type=int, default=2)
     parser.add_argument("-fj", type=str, default='')
     return parser.parse_args(args=args, namespace=namespace)
 
@@ -18,15 +18,28 @@ def read_json_file(filepath):
     
 def text_cleaning(text):
     text = re.sub(r"%[^;]*;|#[^;]*;|%\d+|\[[^[\\\/]*\]", '', text)
+    text = text.replace('\\x', '')
+    text = text.replace('\\', '')
     text = text.replace('%D$vl1', '')
     text = text.replace('『', '').replace('』', '').replace('「', '').replace('」', '').replace('（', '').replace('）', '').replace('“', '').replace('”', '').replace('≪', '').replace('≫', '')
     text = text.replace('\n', '').replace(r'\n', '').replace(r'　', '').replace('♪', '').replace('♥', '').replace('%r', '').replace('\u3000', '')
     return text
 
+def get_voice_json(voices):
+    voice_list = {}
+    for voice in voices['list']:
+        voice_list[voice['file']] = voice['name']
+    return voice_list
+
 def main(JA_dir, op_json, force_type, force_json):
-    files_original = [f for f in os.listdir(JA_dir) if f.endswith('.json') and not f.endswith('.resx.json')]
+    files_original = []
+    for root, dirs, files in os.walk(JA_dir):
+        for f in files:
+            if f.endswith('.json') and not f.endswith('.resx.json'):
+                files_original.append(os.path.join(root, f))
 
     dialogues = []
+    seen_voices = set()
 
     for filename in tqdm(files_original):
         _0_JA_data = read_json_file(os.path.join(JA_dir, filename))
@@ -37,64 +50,105 @@ def main(JA_dir, op_json, force_type, force_json):
                     for _2_JA_texts in _1_JA_scenes['texts']:
                         if _2_JA_texts[0] is None or _2_JA_texts[2] is None or _2_JA_texts[3] is None:
                             continue
-                        try:
-                            if filename == force_json:
+                        if filename == force_json:
+                            Speaker = _2_JA_texts[0]
+                            Text = _2_JA_texts[2]
+                            Voice = _2_JA_texts[3]
+                            dialogues.append((Speaker, Voice, Text))
+                        
+                        match force_type:
+                            case -1:
                                 Speaker = _2_JA_texts[0]
                                 Text = _2_JA_texts[2]
                                 Voice = _2_JA_texts[3]
-                                dialogues.append((Speaker, Voice, Text))
+                                Text = text_cleaning(Text)
+                                if Voice in seen_voices:
+                                    print(f"重复的 Voice: {Voice}, Speaker: {Speaker}, Text: {Text}")
+                                else:
+                                    seen_voices.add(Voice)
+                                    dialogues.append((Speaker, Voice, Text))
 
-                            elif force_type == 0: # JP
+                            case 0: # JP
+                                Text = _2_JA_texts[1][0][1]
+                                Voice = _2_JA_texts[2][0]['voice']
+                                for key, value in voice_list.items():
+                                    if Voice.startswith(key):
+                                        Speaker = key
+                                        break
+                                Text = text_cleaning(Text)
+                                if Voice in seen_voices:
+                                    print(f"重复的 Voice: {Voice}, Speaker: {Speaker}, Text: {Text}")
+                                else:
+                                    seen_voices.add(Voice)
+                                    dialogues.append((Speaker, Voice, Text))
+
+                            case 1: # JP
+                                Speaker = _2_JA_texts[0]
+                                Text = _2_JA_texts[2]
+                                Voice = _2_JA_texts[3][0]['voice']
+
+                                Speaker = Speaker.replace(' ', '')
+                                Text = text_cleaning(Text)
+                                if Voice.lower() in seen_voices:
+                                    print(f"重复的 Voice: {Voice}, Speaker: {Speaker}, Text: {Text}")
+                                else:
+                                    seen_voices.add(Voice.lower())
+                                    dialogues.append((Speaker, Voice, Text))
+
+                            case 2: # JP EN
                                 Speaker = _2_JA_texts[0]
                                 Text = _2_JA_texts[1][0][1]
                                 Voice = _2_JA_texts[2][0]['voice']
                                 Text = text_cleaning(Text)
-                                dialogues.append((Speaker, Voice, Text))
+                                if '|' in Voice:
+                                    Voice = Voice.split('|')[0]
+                                if Voice in seen_voices:
+                                    print(f"重复的 Voice: {Voice}, Speaker: {Speaker}, Text: {Text}")
+                                else:
+                                    seen_voices.add(Voice)
+                                    dialogues.append((Speaker, Voice, Text))
 
-                            elif force_type == 1: # JP
+                            case 3 : # JP EN CHS | JP EN CHS CHT
                                 Speaker = _2_JA_texts[0]
-                                Text = _2_JA_texts[2]
+                                Text = _2_JA_texts[2][0][1]
                                 Voice = _2_JA_texts[3][0]['voice']
+                                if '|' in Voice:
+                                    Voice = Voice.split('|')[0]
                                 Text = text_cleaning(Text)
-                                dialogues.append((Speaker, Voice, Text))
-
-                            elif force_type == 2: # JP EN
-                                Speaker = _2_JA_texts[0]
-                                Text = _2_JA_texts[2][0][1]
-                                Voice = _2_JA_texts[3][0]['voice']
-                                if '|' in Voice:
-                                    Voice = Voice.split('|')[0]
-                                dialogues.append((Speaker, Voice, Text))
-
-                            elif force_type == 3 or force_type == 4: # JP EN CHS | JP EN CHS CHT
-                                Speaker = _2_JA_texts[0]
-                                Text = _2_JA_texts[2][0][1]
-                                Voice = _2_JA_texts[3][0]['voice']
-                                if '|' in Voice:
-                                    Voice = Voice.split('|')[0]
-                                dialogues.append((Speaker, Voice, Text))
-                                
-                            else:
+                                if Voice in seen_voices:
+                                    print(f"重复的 Voice: {Voice}, Speaker: {Speaker}, Text: {Text}")
+                                else:
+                                    seen_voices.add(Voice)
+                                    dialogues.append((Speaker, Voice, Text))
+                            
+                            case 4:
                                 if isinstance(_2_JA_texts[3], list):
                                     for item in _2_JA_texts[3]:
                                         Speaker = item['name']
                                         Text = _2_JA_texts[2]
                                         Voice = item['voice']
                                         Text = text_cleaning(Text)
-                                        dialogues.append((Speaker, Voice, Text))
+                                        if Voice in seen_voices:
+                                            print(f"重复的 Voice: {Voice}, Speaker: {Speaker}, Text: {Text}")
+                                        else:
+                                            seen_voices.add(Voice)
+                                            dialogues.append((Speaker, Voice, Text))
                                 else:
                                     Speaker = _2_JA_texts[0]
                                     Text = _2_JA_texts[2]
                                     Voice = _2_JA_texts[3]
                                     Text = text_cleaning(Text)
-                                    dialogues.append((Speaker, Voice, Text))
-                        except:
-                            print(f"Error in {filename}")
-                            exit()
+                                    if Voice in seen_voices:
+                                        print(f"重复的 Voice: {Voice}, Speaker: {Speaker}, Text: {Text}")
+                                    else:
+                                        seen_voices.add(Voice)
+                                        dialogues.append((Speaker, Voice, Text))
     
     with open(op_json, mode='w', encoding='utf-8') as file:
         json_data = [{'Speaker': Speaker, 'Voice': Voice, 'Text': Text} for Speaker, Voice, Text in dialogues]
         json.dump(json_data, file, ensure_ascii=False, indent=4)
+
+    
 
 if __name__ == '__main__':
     cmd = parse_args()

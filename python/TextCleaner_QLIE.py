@@ -1,45 +1,87 @@
 import re
-import os
+import json
+import argparse
+from tqdm import tqdm
 from glob import glob
 
-def main(file_path, output_directory_path, debug_mode=False):
+def parse_args(args=None, namespace=None):
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-JA", type=str, default=r"D:\Fuck_galgame\scenario")
+    parser.add_argument("-op", type=str, default=r'D:\Fuck_galgame\index.json')
+    parser.add_argument("-ft", type=int, default=2)
+    return parser.parse_args(args=args, namespace=namespace)
+
+def text_cleaning(text):
+    text = re.sub(r"\[.*?,(.*?),.*?\]", r"\1", text)
+    text = text.replace('」', '').replace('「', '').replace('（', '').replace('）', '').replace('『', '').replace('』', '')
+    text = text.replace('〈ハ〉', '').replace('　', '')
+    return text
+
+def main(JA_dir, op_json, force_type):
+    filelist = glob(f"{JA_dir}/**/*.s", recursive=True)
+    seen_voices = set()
     results = []
-    with open(file_path, 'r', encoding='utf-16-le') as file:
-        lines = [line.strip() for line in file.readlines() if line.strip()]
+    for filename in tqdm(filelist):
+        with open(filename, 'r', encoding='cp932') as file:
+            lines = [line.strip() for line in file.readlines() if line.strip()]
 
-    for i, line in enumerate(lines):
-        if i < len(lines) - 2:
-            speaker_match = re.search(r'【(.*?)】', line)
-            if speaker_match:
-                speaker = speaker_match.group(1)
-                speaker = speaker.replace('＠？？？', '')
-                if re.match(r'^％', lines[i + 1]):
-                    audio_file = re.search(r'％(\w+)', lines[i + 1]).group(1)
-                    dialogue = lines[i + 2]
-                    dialogue = dialogue.replace('「', '').replace('」', '').replace('〈ハ〉', '')
-                    if dialogue == '':
+        if force_type == 0:
+            for i, line in enumerate(lines):
+                if i < len(lines) - 2:
+                    Speaker_match = re.search(r'【(.*?)】', line)
+                    if Speaker_match:
+                        Speaker_cuts = Speaker_match.group(1)
+                        Speaker_cuts = Speaker_cuts.split('＠')
+                        for Speaker_cut in Speaker_cuts:
+                            if Speaker_cut != '？？？' and Speaker_cut != 'none' and Speaker_cut != '':
+                                Speaker = Speaker_cut
+                        if re.match(r'^％', lines[i + 1]):
+                            Voice = re.search(r'％(\w+)', lines[i + 1]).group(1)
+                            Text = lines[i + 2]
+                            Text = text_cleaning(Text)
+                            if Text == '':
+                                continue
+                            results.append((Speaker, Voice, Text))
+
+        if force_type == 1:
+            for i, line in enumerate(lines):
+                if i < len(lines) - 2:
+                    Voice_match = re.search(r'^％(\w+)', line)
+                    next_line_match = re.match(r'^【', lines[i + 1])
+                    if Voice_match and next_line_match:
+                        Voice = Voice_match.group(1)
+                        Speaker_cuts = re.search(r'【(.*?)】', lines[i + 1]).group(1)
+                        Speaker_cuts = Speaker_cuts.split('＠')
+                        for Speaker_cut in Speaker_cuts:
+                            if Speaker_cut != '？？？' and Speaker_cut != 'none' and Speaker_cut != '':
+                                Speaker = Speaker_cut
+                        Text = lines[i + 2]
+                        Text = text_cleaning(Text)
+                        if Text == '':
+                            continue
+                        results.append((Speaker, Voice, Text))
+
+        if force_type == 2:
+            for i, line in enumerate(lines):
+                if bool(re.match(r'^(?![Nn][Oo][Nn][Ee])[A-Za-z]', line)):
+                    Voice, Speaker, Text = line.split(',', 2)
+                    Voice = Voice.lower()
+                    if '＠' in Speaker:
+                        Speaker = Speaker.split('＠')[1]
+                    if Speaker == '？？？' or Speaker == 'none' or Speaker == '':
                         continue
-                    results.append({'speaker': speaker, 'audio': audio_file, 'text': dialogue})
+                    Text = text_cleaning(Text)
 
-    subdir_path = file_path.split('\\')[-2]
+                    if Voice in seen_voices:
+                        print(f"重复的 Voice: {Voice}, Speaker: {Speaker}, Text: {Text}")
+                    else:
+                        results.append({'Speaker': Speaker, 'Voice': Voice, 'Text': Text})
+                        seen_voices.add(Voice)  # 将 Voice 添加到已处理的集合中
 
-    for item in results:
-        if debug_mode:
-            debug_text = os.path.join(output_directory_path, f"{subdir_path}_debug.txt")
-            with open(debug_text, 'a', encoding='utf-8') as f:
-                f.write(f"{item['audio']}|{item['speaker']}|{item['text']}\n")
-        else:
-            text_dir = os.path.join(output_directory_path, subdir_path, item['speaker'])
-            text_path = os.path.join(text_dir, f"{item['audio']}.txt")
-            os.makedirs(text_dir, exist_ok=True)
-            with open(text_path, 'w', encoding='utf-8') as f:
-                f.write(item['text'])
+
+    with open(op_json, 'w', encoding='utf-8') as file:
+        json.dump(results, file, ensure_ascii=False, indent=4)
 
 if __name__ == '__main__':
-    in_dir = r'C:\Users\bfloat16\Downloads\IBUN01_DL\setup\appdata\scenario'
-    out_dir = r'C:\Users\bfloat16\Downloads\IBUN01_DL\setup\appdata\scenario'
-    debug_mode = False
-
-    file_paths = glob(f"{in_dir}/*.s", recursive=True)
-    for file_path in file_paths:
-        main(file_path, out_dir, debug_mode=debug_mode)
+    args = parse_args()
+    main(args.JA, args.op, args.ft)

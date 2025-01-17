@@ -1,4 +1,3 @@
-import glob
 import os
 import subprocess
 
@@ -12,7 +11,11 @@ def main(file_path):
         print(f"Error decompiling {file_path}: {e}")
 
 if __name__ == '__main__':
-    input_directory_path = r"E:\Dataset\FuckGalGame\Purple software\Criminal Border 3rd offence\script"
-    file_paths = glob.glob(os.path.join(input_directory_path, '*'))
-    for file_path in file_paths:
-        main(file_path)
+    input_directory_path = r"D:\\Fuck_galgame\\scn"
+
+    # 使用 os.walk 遍历嵌套目录
+    for root, _, files in os.walk(input_directory_path):
+        for file in files:
+            if file.endswith('.scn'):
+                file_path = os.path.join(root, file)
+                main(file_path)

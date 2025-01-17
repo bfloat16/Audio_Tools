@@ -11,8 +11,8 @@ pos = 0
 
 def parse_args(args=None, namespace=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument("-JA", type=str, default=r"E:\Dataset\FuckGalGame\Archive\Unravel trigger\script")
-    parser.add_argument("-op", type=str, default=r'D:\AI\Audio_Tools\python\1.json')
+    parser.add_argument("-JA", type=str, default=r"D:\Fuck_galgame\scene")
+    parser.add_argument("-op", type=str, default=r'D:\Fuck_galgame\index.json')
     return parser.parse_args(args=args, namespace=namespace)
 
 def uncompress_cstx(filename):
@@ -72,6 +72,37 @@ def read_string(data):
     pos += length
     return str
 
+def text_cleaning(text):
+    text =  re.sub(r'\[([^]/]*)/([^]]*)\]', r'\1', text)
+    text =  re.sub(r'\[([^]/]*):([^]]*)\]', r'\1', text)
+    text = re.sub(r'\\(?!w0)[a-zA-Z0-9]{2}', '', text)
+    text = re.sub(r'\\w0;.*', '', text)
+    text = text.replace('」', '').replace('「', '').replace('』', '').replace('『', '').replace('（', '').replace( '）', '')
+    text = text.replace('\\@', '').replace('\\n', '').replace('♪', '').replace('　', '').replace('"', '').replace("\t", "")
+    return text
+
+def is_desired_string(string):
+    undesired_prefixes = (
+        "//", "\t//", "%", "#", "\t#", "\t\\n", "\t＠",
+        "\tbg", "\tcall", "\tcam", "\tcg", "\tdic_reg", "\teg", "\tepl", "\temoinfo", "\tfg", "\tframe", "\tfw",
+        "if", "\tif", "\tmovie", "\tmpl", "particle", "\tparticle", "\tpl", "\trdraw", "\trwipe", "\tse", "\twait", "\twipe"
+    )
+
+    undesired_fullstrings = ["", "\t", "\tinitialize_header", "fmpl"]
+
+    undesired_substrings = ["fmpl"]
+
+    undesired_pattern = re.compile(r"\tpcm \d+ end")
+
+    if (
+        string.startswith(undesired_prefixes) or
+        string in undesired_fullstrings or
+        undesired_pattern.match(string) or
+        any(substring in string for substring in undesired_substrings)
+    ):
+        return False
+    return True
+
 def main(JA_dir, op_json):
     filelist = glob(f"{JA_dir}/**/*.cstx", recursive=True)
     results = []
@@ -87,50 +118,59 @@ def main(JA_dir, op_json):
                 string_num = read_string_num(data)
                 for j in range(string_num):
                     string = read_string(data)
-                    if not string.startswith("//"):
+                    string = string.lstrip(' ')
+                    string = string.split('\t//')[0]
+                    if is_desired_string(string):
                         tmp_results.append(string)
-            a = 0
-            b = 0
-            is_header = False
-            while a < len(tmp_results):
-                if tmp_results[a].startswith("\tpcm") and "end" not in tmp_results[a] and "rdraw" not in tmp_results[a]:
-                    tmp_audio = []
-                    tmp_speaker = []
-                    for b in range(a, len(tmp_results)):
-                        if tmp_results[b].startswith("\tpcm"):
-                            tmp_audio.append(tmp_results[b])
 
-                        elif not tmp_results[b].startswith("\t") and tmp_results[b] != "":
-                            tmp_speaker = re.split('[＆＠]', tmp_results[b])[:b - a]
+        with open(filename.replace(".cstx", ".txt"), 'w', encoding='utf-8') as f:
+            for line in tmp_results:
+                f.write(line + '\n')
 
-                        elif tmp_results[b].startswith("\t"):
-                            Text = ""
-                            while tmp_results[b].startswith("\t") and not re.match(r'(?<!\\)＠', tmp_results[b]):
-                                Text += tmp_results[b]
-                                if '\\@' in tmp_results[b]:
-                                    b += 1
-                                    break
-                                b += 1
-                            break
+        a = 0
+        b = 0
+        while a < len(tmp_results):
+            if tmp_results[a].startswith("\tpcm"):
+                tmp_audio = []
+                tmp_speaker = []
+                for b in range(a, len(tmp_results)):
+                    if tmp_results[b].startswith("\tpcm"):
+                        tmp_audio.append(tmp_results[b])
 
+                    elif not tmp_results[b].startswith("\t") and tmp_results[b] != "":
+                        tmp_speaker = [re.split('＠', part)[0].replace(" ", "") for part in tmp_results[b].split('＆')][:b - a]
+
+                    elif tmp_results[b].startswith("\t") and len(tmp_audio) == len(tmp_speaker):
+                        Text = ""
+                        while tmp_results[b].startswith("\t「"):
+                            Text += tmp_results[b]
+                            if '」' in tmp_results[b]:
+                                break
+                            b += 1
+                        while tmp_results[b].startswith("\t『"):
+                            Text += tmp_results[b]
+                            if '』' in tmp_results[b]:
+                                break
+                            b += 1
+                        break
+                    else:
+                        print(f"{filename} {tmp_results[b]}")
+                        break
+
+                if  len(tmp_audio) == len(tmp_speaker):  
                     for tmp_audio, tmp_speaker in zip(tmp_audio, tmp_speaker):
                         tmp_audio = tmp_audio.replace("\tpcm ", "")
-                        Text = Text.replace("\t", "").replace("\\@", "").replace("　", "").replace("「", "").replace("」", "").replace("『", "").replace("』", "")
-                        if tmp_audio == 'SOP_5_13_01_007':
-                            pass
-                        results.append((tmp_audio, tmp_speaker, Text))
-                    a = b
-                a += 1
-
-            is_header = False
+                        Text = text_cleaning(Text)
+                        results.append((tmp_speaker, tmp_audio, Text))
+                a = b
+            a += 1
 
     with open(op_json, mode='w', encoding='utf-8') as file:
         seen = set()
         json_data = []
         for Speaker, Voice, Text in results:
-            record = (Speaker, Voice, Text)
-            if record not in seen:
-                seen.add(record)
+            if Voice not in seen:
+                seen.add(Voice)
                 json_data.append({'Speaker': Speaker, 'Voice': Voice, 'Text': Text})
         json.dump(json_data, file, ensure_ascii=False, indent=4)
 

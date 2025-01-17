@@ -1,12 +1,12 @@
+import os
 import argparse
-from glob import glob
 from mutagen.wave import WAVE
 from mutagen.oggvorbis import OggVorbis
 from mutagen.oggopus import OggOpus
 from concurrent.futures import ProcessPoolExecutor
 from rich.progress import Progress, BarColumn, TextColumn, TimeElapsedColumn, TimeRemainingColumn, MofNCompleteColumn
 
-rich_progress = Progress(TextColumn("Running: "), BarColumn(), "[progress.percentage]{task.percentage:>3.1f}%", "•", MofNCompleteColumn(), "•", TimeElapsedColumn(), "|", TimeRemainingColumn())
+rich_progress = Progress(TextColumn("Running: "), BarColumn(), "[progress.percentage]{task.percentage:>3.1f}%", "•", MofNCompleteColumn(), "•", TimeElapsedColumn(), "|", TimeRemainingColumn(), refresh_per_second=5)
 
 def sec_to_time(total_seconds):
     hours = total_seconds // 3600
@@ -19,7 +19,7 @@ def calculate_durations(filenames):
     max_duration_sec = 0
     min_duration_sec = float('inf')
     
-    with Progress() as rich_progress:
+    with rich_progress:
         task2 = rich_progress.add_task("Processing", total=len(filenames))
         
         for filename in filenames:
@@ -62,8 +62,16 @@ def main(in_dir, num_processes):
     print('Loading audio files...')
     extensions = ["wav", "mp3", "ogg", "flac", "opus", "snd"]
     filenames = []
-    for ext in extensions:
-        filenames.extend(glob(f"{in_dir}/**/*.{ext}", recursive=True))
+
+    with rich_progress:
+        task1 = rich_progress.add_task("Loading", total=None)
+        for root, _, files in os.walk(in_dir):
+            for file in files:
+                if file.lower().endswith(tuple(extensions)):
+                    filenames.append(os.path.join(root, file))
+                    rich_progress.update(task1, advance=1)
+        rich_progress.update(task1, total=len(filenames), completed=len(filenames))
+
     print("==========================================================================")
     
     if filenames:
@@ -81,8 +89,8 @@ def main(in_dir, num_processes):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--in_dir", type=str, default=r"D:\Galgame_Dataset_unpack")
-    parser.add_argument('--num_processes', type=int, default=10)
+    parser.add_argument("--in_dir", type=str, default=r"D:\#OK")
+    parser.add_argument('--num_processes', type=int, default=8)
     args = parser.parse_args()
 
     main(args.in_dir, args.num_processes)

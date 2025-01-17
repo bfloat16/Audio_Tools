@@ -1,106 +1,131 @@
 import re
+import os
 import json
-import struct
 import argparse
-from tqdm import tqdm
 from glob import glob
+
+import TextCleaner_BGI_C
 
 def parse_args(args=None, namespace=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument("-JA", type=str, default=r"E:\Dataset\FuckGalGame\Lump of Sugar\Arcana Alchemia\script")
-    parser.add_argument("-op", type=str, default=r'D:\AI\Audio_Tools\python\1.json')
+    parser.add_argument("-JA", type=str, default=r"D:\Fuck_galgame\sc")
+    parser.add_argument("-vo", type=str, default=r'D:\Fuck_galgame\vo')
+    parser.add_argument("-op", type=str, default=r'D:\Fuck_galgame\index.json')
+    parser.add_argument("-ve", type=int, default=0)
     return parser.parse_args(args=args, namespace=namespace)
 
-def BGI(file_path):
-    with open(file_path, 'rb') as file:
-        data = file.read()
-    
-    data_length = len(data)
-    results = []
-    
-    index_start = data.find(b'\x00\x00\x00\x00\x01\x00\x00\x00')
-    
-    index_start = index_start + 4
-    position = index_start
-    while position < data_length:
-        if data[position:position + 4] == b'\x03\x00\x00\x00':
-            position += 4
-            
-            offset = data[position:position + 4]
-            offset = struct.unpack('<I', offset)[0]
-            
-            target_position = offset + index_start
-            
-            if target_position >= data_length:
-                break
-            string_data = b''
-            
-            while target_position < data_length:
-                byte = data[target_position]
-                if byte == 0x00:
-                    break
-                string_data += bytes([byte])
-                target_position += 1
-            string = string_data.decode('cp932')
-            if '\\' in string:
-                continue
-            results.append(string)
+class Check_Spk():
+    def __init__(self, Voice_path):
+        self.audio_files = {}
+        for root, dirs, files in os.walk(Voice_path):
+            for file in files:
+                self.audio_files[file.lower()] = os.path.join(root, file)
+    def check(self, Voice):
+        if Voice.lower() in self.audio_files:
+            return True
         else:
-            position += 4
-    
-    return results
+            return False
+
+def get_code_section(code_section):
+    code_bytes, text_bytes, config = TextCleaner_BGI_C.split_data(code_section)
+    text_section = TextCleaner_BGI_C.get_text_section(text_bytes)
+    code_section = TextCleaner_BGI_C.get_code_section(code_bytes, text_section, config)
+    return code_section
 
 def text_cleaning(text):
+    text = re.sub(r'\uf8f3|\u0002|\u0001', "", text)
     text = re.sub(r"<.*?>", "", text)
     text = text.replace('「', '').replace('」', '').replace('（', '').replace('）', '').replace('『', '').replace('』', '')
-    text = text.replace('　', '')
+    text = text.replace('　', '').replace('\n', '')
     return text
 
-def main(JA_dir, op_json):
+def main(JA_dir, voice_path, op_json, version):
+    check = Check_Spk(voice_path)
     filelist = glob(f"{JA_dir}/**/*", recursive=True)
     results = []
 
-    for filename in tqdm(filelist):
-        lines = BGI(filename)
-        for i, line in enumerate(lines):
-            if line == "_PlayVoice":
-                Voice = lines[i - 1]
-                if Voice == "":
-                    print(filename, i)
-                    continue
-                if Voice == 'NON_a000102':
-                    pass
-                Speaker_id = Voice.split('_')[0]
-                if lines[i + 1] == lines[i + 3]:
-                    Speaker = lines[i + 2]
-                    Text = lines[i + 3]
+    for filename in filelist:
+        with open(filename, 'rb') as file:
+            data = file.read()
+        try:
+            code_section = get_code_section(data)
+        except:
+            print(f"Error: {filename}")
+            continue
+        print(filename)
+        for index in code_section:
+            match version:
+                case 0:
+                    '''
+                    -1 = ('OTHER', 'Voice')
+                     0 = ('NAME', 'Speaker')
+                     1 = ('TEXT', 'Text')
+                    '''
+                    if index != 0 and code_section[index][0] == "NAME" and code_section[index - 1][0] == "OTHER" and code_section[index + 1][0] == "TEXT":
+                        Speaker = code_section[index][1].replace(' ', '')
+                        Voice = code_section[index - 1][1]
+                        Text = code_section[index + 1][1]
+                        if not check.check(Voice):
+                            print(f"Voice {Voice} not found")
+                            continue
+                        #pattern = re.compile(r'^([A-Za-z]+)\d+')
+                        #Speaker_id = pattern.match(Voice).group(1)
+                        Speaker_id = Voice.split('_')[0]
+                        Text = text_cleaning(Text)
+                        results.append((Speaker, Speaker_id, Voice, Text))
+                case 1:
+                    if index != 0 and code_section[index][0] == "NAME" and code_section[index - 1][0] == "OTHER" and code_section[index + 1][0] == "TEXT":
+                        if code_section[index - 1][0] == "OTHER":
+                            Speaker = code_section[index][1]
+                            Voice = code_section[index - 1][1]
+                            Text = code_section[index + 1][1]
+
+                            Text = text_cleaning(Text)
+                            results.append((Speaker, Voice, Text))
+                case 2:
+                    if code_section[index][0] == "NAME" and index != 0:
+                        if code_section[index - 2][0] == "OTHER" and code_section[index - 1][0] == "OTHER" and code_section[index - 1][1] == "Voice":
+                            Speaker = code_section[index][1]
+                            Voice = code_section[index - 2][1]
+                            Text = code_section[index + 1][1]
+
+                            Text = text_cleaning(Text)
+                            results.append((Speaker, Voice, Text))
+                case 3:
+                   if code_section[index][0] == "NAME" and index != 0:
+                        if code_section[index - 1][0] == "OTHER" and code_section[index - 1][1] == "_PlayVoice" and code_section[index - 2][0] == "OTHER":
+                            Speaker = code_section[index][1]
+                            Voice = code_section[index - 2][1]
+                            Text = code_section[index + 1][1]
+                            if not check.check(Voice):
+                                print(f"Voice {Voice} not found")
+                                continue
+                            Text = text_cleaning(Text)
+                            results.append((Speaker, Voice, Text))
+        
+    match version:
+        case 0:
+            replace_dict = {}
+            for Speaker, Speaker_id, Voice, Text in results:
+                if (Speaker != '？' and Speaker != '？？？' and Speaker != '\u3000') and Speaker_id not in replace_dict:
+                    replace_dict[Speaker_id] = Speaker
+
+            results_fix = []
+            for Speaker, Speaker_id, Voice, Text in results:
+                if (Speaker == '？' or Speaker == '？？？' or Speaker == '\u3000') and Speaker_id in replace_dict:
+                    results_fix.append((replace_dict[Speaker_id], Voice, Text))
                 else:
-                    Speaker = lines[i + 1]
-                    Text = lines[i + 2]
-                Text = text_cleaning(Text)
-                results.append((Speaker, Speaker_id, Voice, Text))
-
-    replace_dict = {}
-    for Speaker, Speaker_id, Voice, Text in results:
-        if Speaker != '？？？' and Speaker_id not in replace_dict:
-            replace_dict[Speaker_id] = Speaker
-
-    fixed_results = []
-    for Speaker, Speaker_id, Voice, Text in results:
-        if Speaker == '？？？' and Speaker_id in replace_dict:
-            fixed_results.append((replace_dict[Speaker_id], Speaker_id, Voice, Text))
-        else:
-            fixed_results.append((Speaker, Speaker_id, Voice, Text))
+                    results_fix.append((Speaker, Voice, Text))
 
     with open(op_json, mode='w', encoding='utf-8') as file:
         seen = set()
         json_data = []
-        for Speaker, Speaker_id, Voice, Text in fixed_results:
-            if (Speaker, Speaker_id, Voice, Text) not in seen:
-                seen.add((Speaker, Speaker_id, Voice, Text))
+        for Speaker, Voice, Text in results_fix:
+            if Voice not in seen:
+                seen.add(Voice)
                 json_data.append({'Speaker': Speaker, 'Voice': Voice, 'Text': Text})
         json.dump(json_data, file, ensure_ascii=False, indent=4)
 
 if __name__ == '__main__':
     args = parse_args()
-    main(args.JA, args.op)
+    main(args.JA, args.vo, args.op, args.ve)
