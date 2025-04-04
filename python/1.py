@@ -16,7 +16,7 @@ for root, dirs, files in os.walk(ba):
             audio_files[file.lower()] = os.path.join(root, file)
 
 # 更新的 index 数据
-updated_index = []  
+updated_index = []
 
 # 遍历 index.json 中的每个条目
 for entry in index_data:
@@ -36,7 +36,7 @@ for entry in index_data:
         if not os.path.exists(speaker_folder):
             os.makedirs(speaker_folder)
         # 移动音频文件到新的文件夹并转换为小写
-        shutil.move(audio_file_path, os.path.join(speaker_folder, audio_file_name))
+        shutil.copy(audio_file_path, os.path.join(speaker_folder, audio_file_name))
         # 添加条目到更新的 index 数据
         updated_index.append(entry)
     else:

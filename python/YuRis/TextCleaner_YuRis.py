@@ -10,7 +10,7 @@ from TextCleaner_YuRis_YSTB import YSTB
 
 def parse_args(args=None, namespace=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument("-vm", type=str, default=r"D:\Fuck_galgame\ysbin")
+    parser.add_argument("-vm", type=str, default=r"E:\Games\Galgame\Azarashi Soft+1\Garudoma -Joshiryou no Kanrinin- After\pac\ysbin")
     parser.add_argument("-sc", type=str, default=r"D:\Fuck_galgame\scenario")
     parser.add_argument("-op", type=str, default=r'D:\Fuck_galgame\index.json')
     parser.add_argument("-md", type=int, default=2)

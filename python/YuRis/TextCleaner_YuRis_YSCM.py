@@ -1,5 +1,4 @@
 import struct
-import json
 from typing import List
 
 class YSCM_Header_V5:

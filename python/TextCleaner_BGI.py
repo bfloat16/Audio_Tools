@@ -9,9 +9,9 @@ import TextCleaner_BGI_C
 def parse_args(args=None, namespace=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("-JA", type=str, default=r"D:\Fuck_galgame\sc")
-    parser.add_argument("-vo", type=str, default=r'D:\Fuck_galgame\vo')
+    parser.add_argument("-vo", type=str, default=r'D:\Fuck_galgame\voice')
     parser.add_argument("-op", type=str, default=r'D:\Fuck_galgame\index.json')
-    parser.add_argument("-ve", type=int, default=0)
+    parser.add_argument("-ve", type=int, default=1)
     return parser.parse_args(args=args, namespace=namespace)
 
 class Check_Spk():
@@ -74,14 +74,23 @@ def main(JA_dir, voice_path, op_json, version):
                         Text = text_cleaning(Text)
                         results.append((Speaker, Speaker_id, Voice, Text))
                 case 1:
-                    if index != 0 and code_section[index][0] == "NAME" and code_section[index - 1][0] == "OTHER" and code_section[index + 1][0] == "TEXT":
-                        if code_section[index - 1][0] == "OTHER":
-                            Speaker = code_section[index][1]
-                            Voice = code_section[index - 1][1]
-                            Text = code_section[index + 1][1]
-
-                            Text = text_cleaning(Text)
-                            results.append((Speaker, Voice, Text))
+                    '''
+                    -1 = ('OTHER', 'Voice')
+                     0 = ('OTHER', 'Speaker')
+                     1 = ('TEXT BACKLOG', 'Text')
+                    '''
+                    if index != 0 and code_section[index][0] == "TEXT BACKLOG" and code_section[index - 1][0] == "OTHER" and code_section[index - 2][0] == "OTHER":
+                        Text = code_section[index][1]
+                        Speaker = code_section[index - 1][1].replace(' ', '')
+                        Voice = code_section[index - 2][1]
+                        if not check.check(Voice):
+                            print(f"Voice {Voice} not found")
+                            continue
+                        #pattern = re.compile(r'^([A-Za-z]+)\d+')
+                        #Speaker_id = pattern.match(Voice).group(1)
+                        Speaker_id = Voice.split('_')[0]    
+                        Text = text_cleaning(Text)
+                        results.append((Speaker, Speaker_id, Voice, Text))
                 case 2:
                     if code_section[index][0] == "NAME" and index != 0:
                         if code_section[index - 2][0] == "OTHER" and code_section[index - 1][0] == "OTHER" and code_section[index - 1][1] == "Voice":

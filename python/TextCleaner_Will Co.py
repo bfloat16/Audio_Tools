@@ -11,16 +11,14 @@ def parse_args(args=None, namespace=None):
     return parser.parse_args(args=args, namespace=namespace)
 
 def text_cleaning(text):
-    text = re.sub(r'\{([^:]*):[^}]*\}|\{(.*?);.*?\}', r'\1', text)
-    text = re.sub(r'%\w+', '', text)
     text = text.replace('『', '').replace('』', '').replace('「', '').replace('」', '').replace('（', '').replace('）', '')
     text = text.replace('　', '').replace('\\n', '')
     return text
 
 def main(JA_dir, op_json):
-    filelist = glob(f"{JA_dir}/**/*.ws2", recursive=True)
-    dialogue_start0 = False
-    dialogue_start1 = False
+    filelist = glob(f"{JA_dir}/**/*.wsc", recursive=True)
+    speaker_start = False
+    text_start = False
     results = []
     for filename in tqdm(filelist):
         with open(filename, 'rb') as file:
@@ -28,56 +26,51 @@ def main(JA_dir, op_json):
 
         i = 0
         while i < len(data):
-            if data[i: i + 2] == b'\x2E\x28':
+            if data[i: i + 2] == b'\x65\x00' and all(data[i + 2 + a] != 0x00 for a in range(3)):
                 i += 2
                 segment = bytearray()
                 while i < len(data) and data[i] != 0:
                     segment.append(data[i])
                     i += 1
-                decoded_segment = segment.decode('cp932').replace('char', '')
-                Speaker_id = decoded_segment
+                Voice = segment.decode('cp932')
+                if Voice == '':
+                    pass
+                Speaker_id = Voice.split('_')[0]
+                speaker_start = True
+
+            if data[i: i + 2] == b'\x0F\x0F' and speaker_start:
+                i += 2
+                segment = bytearray()
+                while i < len(data) and data[i] != 0:
+                    segment.append(data[i])
+                    i += 1
+                Speaker = segment.decode('cp932')
+                Speaker = Speaker.split('／')[-1]
+                speaker_start = False
+                text_start = True
+
+            if data[i: i + 1] == b'\x00' and text_start:
                 i += 1
                 segment = bytearray()
-                while i < len(data) and data[i] != 0:
+                while i < len(data) and data[i: i + 1] != b'%':
                     segment.append(data[i])
                     i += 1
-                decoded_segment = segment.decode('cp932').replace('.OGG', '')
-                Voice = decoded_segment
-                dialogue_start0 = True
-
-            if data[i: i + 2] == b'\x15\x25' and dialogue_start0:
-                i += 4
-                segment = bytearray()
-                while i < len(data) and data[i] != 0:
-                    segment.append(data[i])
-                    i += 1
-                decoded_segment = segment.decode('cp932')
-                Speaker = text_cleaning(decoded_segment)
-                dialogue_start1 = True
-
-            if data[i: i + 4] == b'\x63\x68\x61\x72' and dialogue_start1:
-                i += 5  # Skip the sequence and one additional byte
-                segment = bytearray()
-                while i < len(data) and data[i] != 0:
-                    segment.append(data[i])
-                    i += 1
-                decoded_segment = segment.decode('cp932')
-                Text = text_cleaning(decoded_segment)
-                dialogue_start0 = False
-                dialogue_start1 = False
+                Text = segment.decode('cp932')
+                Text = text_cleaning(Text)
                 results.append((Speaker, Speaker_id, Voice, Text))
+                text_start = False
 
             else:
                 i += 1
 
     replace_dict = {}
     for Speaker, Speaker_id, Voice, Text in tqdm(results):
-        if Speaker != '？？？' and Speaker != '' and Speaker_id not in replace_dict:
+        if Speaker != '？？？' and Speaker_id not in replace_dict:
             replace_dict[Speaker_id] = Speaker
 
     fixed_results = []
     for Speaker, Speaker_id, Voice, Text in tqdm(results):
-        if (Speaker == '？？？' or Speaker == '') and Speaker_id in replace_dict:
+        if Speaker == '？？？' and Speaker_id in replace_dict:
             fixed_results.append((replace_dict[Speaker_id], Speaker_id, Voice, Text))
         else:
             fixed_results.append((Speaker, Speaker_id, Voice, Text))

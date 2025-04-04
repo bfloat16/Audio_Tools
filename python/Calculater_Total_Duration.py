@@ -89,8 +89,8 @@ def main(in_dir, num_processes):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--in_dir", type=str, default=r"D:\#OK")
-    parser.add_argument('--num_processes', type=int, default=8)
+    parser.add_argument("--in_dir", type=str, default=r"D:\1")
+    parser.add_argument('--num_processes', type=int, default=18)
     args = parser.parse_args()
 
     main(args.in_dir, args.num_processes)

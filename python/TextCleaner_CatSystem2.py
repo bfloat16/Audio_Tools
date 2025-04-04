@@ -9,7 +9,7 @@ import xmltodict
 
 def parse_args(args=None, namespace=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument("-JA", type=str, default=r"D:\Fuck_galgame\sc")
+    parser.add_argument("-JA", type=str, default=r"C:\Users\bfloat16\Downloads\GrisaiaExtract\Grisaia no Rakuen\Raw")
     parser.add_argument("-op", type=str, default=r'D:\Fuck_galgame\index.json')
     parser.add_argument("-spk", type=str, default=r'D:\Fuck_galgame\startup.xml')
     return parser.parse_args(args=args, namespace=namespace)
@@ -152,10 +152,7 @@ def extract_cst(file_path):
             raise Exception("File too short to contain compressed data")
         
         # 解压缩数据
-        try:
-            script_data = zlib.decompress(compressed_data)
-        except:
-            script_data = zlib.decompress(compressed_data)
+        script_data = zlib.decompress(compressed_data)
 
         if len(script_data) != hdr.decompressed_length:
             raise Exception("Decompressed data length mismatch")
@@ -203,7 +200,7 @@ def extract_cst(file_path):
             type_ = struct.unpack(SCRIPTLINE.STRUCT_FORMAT, type_data)[0]
 
             # 读取 Content
-            content = read_null_terminated_string(buffer, encoding='shift_jis')
+            content = read_null_terminated_string(buffer, encoding='cp932')
 
             script_lines.append(SCRIPTLINE(type_, content))
 
@@ -214,7 +211,7 @@ def text_cleaning(text):
     text = re.sub(r'\\(?!w0)[a-zA-Z0-9]{2}', '', text)
     text = re.sub(r'\\w0;.*', '', text)
     text = text.replace('」', '').replace('「', '').replace('』', '').replace('『', '').replace('（', '').replace( '）', '')
-    text = text.replace('\\@', '').replace('\\n', '').replace('♪', '').replace('　', '').replace('"', '')
+    text = text.replace('\\@', '').replace('\\n', '').replace('♪', '').replace('　', '').replace('"', '').replace('①', '。').replace('●', '')
     text = re.sub(r'\[[^\[\]]*\]', '', text)
     return text
 
@@ -249,6 +246,7 @@ if __name__ == "__main__":
             elif item['TYPE'] == 'NAME' and is_spk and not is_msg:
                 is_msg = True
                 tmp_speaker = item['Content']
+                tmp_speaker = tmp_speaker.split('＠')[0]
             
             elif item['TYPE'] == 'MESSAGE' and is_spk and is_msg:
                 is_spk = False
@@ -256,8 +254,6 @@ if __name__ == "__main__":
                 Text = text_cleaning(item['Content'])
 
                 for voice in tmp_voice:
-                    if voice.lower() == "ama_mic05_018":
-                        pass
                     voice = voice.replace(' ', '')
                     try:
                         Speaker = spk[voice.split('_')[0].lower()]
