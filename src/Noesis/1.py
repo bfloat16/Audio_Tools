@@ -21,7 +21,7 @@ def text_cleaning(text):
 def main(JA_dir, op_json, ft):
     match ft:
         case 0:
-            filelist = glob(f"{JA_dir}/**/*.ws2", recursive=True)
+            filelist = glob(f"{JA_dir}/**/*.s", recursive=True)
             dialogue_start0 = False
             dialogue_start1 = False
             results = []
@@ -31,8 +31,8 @@ def main(JA_dir, op_json, ft):
 
                 i = 0
                 while i < len(data):
-                    if data[i: i + 2] == b'\x2E\x28':
-                        i += 2
+                    if data[i: i + 5] == b'\x00\x00\x00\x00\x07':
+                        i += 5
                         segment = bytearray()
                         while i < len(data) and data[i] != 0:
                             segment.append(data[i])

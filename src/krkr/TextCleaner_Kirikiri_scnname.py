@@ -5,7 +5,7 @@ import shutil
 
 def parse_args(args=None, namespace=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument("-JA", type=str, default=r"E:\Games\Galgame\Purple software\Lip lipples\Extractor_Output\data")
+    parser.add_argument("-JA", type=str, default=r"E:\Games\Galgame\Yuzusoft\Tenshi☆Souzou RE-BOOT!\Extractor_Output\data")
     parser.add_argument("-op", type=str, default=r"D:\Fuck_galgame\script")
     return parser.parse_args(args=args, namespace=namespace)
 

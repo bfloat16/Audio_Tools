@@ -10,20 +10,17 @@ from TextCleaner_YuRis_YSTB import YSTB
 
 def parse_args(args=None, namespace=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument("-vm", type=str, default=r"E:\Games\Galgame\Azarashi Soft+1\Garudoma -Joshiryou no Kanrinin- After\pac\ysbin")
+    parser.add_argument("-vm", type=str, default=r"D:\Fuck_galgame\ysbin")
     parser.add_argument("-sc", type=str, default=r"D:\Fuck_galgame\scenario")
     parser.add_argument("-op", type=str, default=r'D:\Fuck_galgame\index.json')
-    parser.add_argument("-md", type=int, default=2)
+    parser.add_argument("-md", type=int, default=1)
     return parser.parse_args(args=args, namespace=namespace)
 
 def text_cleaning(text):
     text = re.sub(r'\\[a-zA-Z]', '', text)
     text = re.sub(r"＠{1,}", "。", text)
     text = text.replace('『', '').replace('』', '').replace('「', '').replace('」', '').replace('（', '').replace('）', '')
-    text = text.replace('　', '').replace(' ', '').replace('♪', '').replace('//', '').replace('☆', '')
-    return text
-
-def text_cleaning_vm(text):
+    text = text.replace('　', '').replace(' ', '').replace('♪', '').replace('//', '').replace('☆', '').replace('▼', '')
     text = re.sub(r'≪([^／≫]+)／[^≫]+≫', r'\1', text)
     return text
 
@@ -77,14 +74,22 @@ def main_vm_w(VM_dir, op_json):
             if Voice in seen:
                 continue
             seen.add(Voice)
-            a = re.match(r"【(.*?)】(.*)", text)
-            if not a:
-                continue
-            Speaker = a.group(1)
-            Speaker = Speaker.split('＠')[0]
-            Text = a.group(2)
-            Text = text_cleaning(Text)
-            result.append({'Speaker': Speaker, 'Voice': Voice, 'Text': Text})
+            match 1:
+                case 0:
+                    a = re.match(r"【(.*?)】(.*)", text)
+                    if not a:
+                        continue
+                case 1:
+                    for pattern in [r"(.*)【(.*?)】", r"(.*)『(.*?)』", r"(.*)「(.*?)」"]:
+                        a = re.match(pattern, text)
+            if a:
+                Speaker = a.group(1)
+                Speaker = Speaker.split('＠')[0]
+                Speaker = Speaker.split('／')[-1]
+                Text = a.group(2)
+                Text = text_cleaning(Text)
+                result.append({'Speaker': Speaker, 'Voice': Voice, 'Text': Text})
+            
     with open(op_json, mode='w', encoding='utf-8') as file:
         json.dump(result, file, ensure_ascii=False, indent=4)
 
@@ -121,7 +126,7 @@ def main_vm_c(VM_dir, op_json):
             if Voice in seen:
                 continue
             seen.add(Voice)
-            text = text_cleaning_vm(text)
+            text = text_cleaning(text)
             a = a_re.match(text)
             if a:
                 Speaker = a.group(1)
@@ -130,6 +135,7 @@ def main_vm_c(VM_dir, op_json):
                     Speaker = Speaker[1]
                 else:
                     Speaker = Speaker[0]
+                Speaker = Speaker.replace('【', '').replace('】', '')
                 Text = a.group('content')
                 Text = text_cleaning(Text)
                 result.append({'Speaker': Speaker, 'Voice': Voice, 'Text': Text})

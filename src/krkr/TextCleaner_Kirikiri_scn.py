@@ -6,9 +6,9 @@ from tqdm import tqdm
 
 def parse_args(args=None, namespace=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument("-JA", type=str, default=r"C:\Users\bfloat16\Desktop\1\Assets\TextAsset")
+    parser.add_argument("-JA", type=str, default=r"D:\Fuck_galgame\script")
     parser.add_argument("-op", type=str, default=r'D:\Fuck_galgame\index.json')
-    parser.add_argument("-ft", type=int, default=3)
+    parser.add_argument("-ft", type=int, default=-1)
     parser.add_argument("-fj", type=str, default='')
     return parser.parse_args(args=args, namespace=namespace)
 
@@ -17,12 +17,14 @@ def read_json_file(filepath):
         return json.load(file)
     
 def text_cleaning(text):
+    text = text.replace('\n', '').replace(r'\n', '')
     text = re.sub(r"%[^;]*;|#[^;]*;|%\d+|\[[^[\\\/]*\]", '', text)
     text = text.replace('\\x', '')
     text = text.replace('\\', '')
+    text = text.replace('\n', '')
     text = text.replace('%D$vl1', '')
     text = text.replace('『', '').replace('』', '').replace('「', '').replace('」', '').replace('（', '').replace('）', '').replace('“', '').replace('”', '').replace('≪', '').replace('≫', '')
-    text = text.replace('\n', '').replace(r'\n', '').replace(r'　', '').replace('♪', '').replace('♥', '').replace('%r', '').replace('\u3000', '')
+    text = text.replace(r'　', '').replace('♪', '').replace('♥', '').replace('%r', '').replace('\u3000', '')
     return text
 
 def get_voice_json(voices):
@@ -58,9 +60,9 @@ def main(JA_dir, op_json, force_type, force_json):
                         
                         match force_type:
                             case -1:
-                                Speaker = _2_JA_texts[0]
-                                Text = _2_JA_texts[2]
-                                Voice = _2_JA_texts[3]
+                                Speaker = _2_JA_texts[3][0]['name']
+                                Text = _2_JA_texts[2][0][1]
+                                Voice = _2_JA_texts[3][0]['voice']
                                 Text = text_cleaning(Text)
                                 if Voice in seen_voices:
                                     print(f"重复的 Voice: {Voice}, Speaker: {Speaker}, Text: {Text}")

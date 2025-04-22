@@ -91,7 +91,7 @@ def get_text_section(text_bytes):
 	return text_section
 	
 def check(code_bytes, pos, cfcn, cpos):
-	return cfcn is not None and get_dword(code_bytes, pos + cpos) == cfcn
+	return get_dword(code_bytes, pos + cpos) == cfcn
 	
 def get_code_section(code_bytes, text_section, config):
 	pos = 4
@@ -106,13 +106,7 @@ def get_code_section(code_bytes, text_section, config):
 		# check if address is in text section and data type is string or file
 		if text_addr in text_section:
 			text = text_section[text_addr]
-			if (
-				type == config['STR_TYPE']
-				and "bs5" not in text
-				and "BS5" not in text
-				and ".txt" not in text
-				and not text.startswith("_")
-			):
+			if type == config['STR_TYPE']:
 				if check(code_bytes, pos, config['TEXT_FCN'], config['NAME_POS']): # check if name (0140)
 					comment = 'NAME'
 
@@ -130,8 +124,7 @@ def get_code_section(code_bytes, text_section, config):
 
 				else:
 					comment = 'OTHER'
-				record = comment, text
-				code_section[index] = record
+				code_section[index] = (comment, text)
 				index += 1
 
 			elif type == config['FILE_TYPE']:

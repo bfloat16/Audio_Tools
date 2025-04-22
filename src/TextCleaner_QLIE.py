@@ -8,10 +8,11 @@ def parse_args(args=None, namespace=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("-JA", type=str, default=r"D:\Fuck_galgame\scenario")
     parser.add_argument("-op", type=str, default=r'D:\Fuck_galgame\index.json')
-    parser.add_argument("-ft", type=int, default=2)
+    parser.add_argument("-ft", type=int, default=0)
     return parser.parse_args(args=args, namespace=namespace)
 
 def text_cleaning(text):
+    text = re.sub(r'\[[^\]]*\]', '', text)
     text = re.sub(r"\[.*?,(.*?),.*?\]", r"\1", text)
     text = text.replace('」', '').replace('「', '').replace('（', '').replace('）', '').replace('『', '').replace('』', '')
     text = text.replace('〈ハ〉', '').replace('　', '')
@@ -22,7 +23,7 @@ def main(JA_dir, op_json, force_type):
     seen_voices = set()
     results = []
     for filename in tqdm(filelist):
-        with open(filename, 'r', encoding='cp932') as file:
+        with open(filename, 'r', encoding='utf-16-le') as file:
             lines = [line.strip() for line in file.readlines() if line.strip()]
 
         if force_type == 0:
@@ -37,11 +38,16 @@ def main(JA_dir, op_json, force_type):
                                 Speaker = Speaker_cut
                         if re.match(r'^％', lines[i + 1]):
                             Voice = re.search(r'％(\w+)', lines[i + 1]).group(1)
+                            Voice = Voice.lower()
                             Text = lines[i + 2]
                             Text = text_cleaning(Text)
                             if Text == '':
                                 continue
-                            results.append((Speaker, Voice, Text))
+                            if Voice in seen_voices:
+                                print(f"重复的 Voice: {Voice}, Speaker: {Speaker}, Text: {Text}")
+                            else:
+                                results.append({'Speaker': Speaker, 'Voice': Voice, 'Text': Text})
+                                seen_voices.add(Voice)
 
         if force_type == 1:
             for i, line in enumerate(lines):

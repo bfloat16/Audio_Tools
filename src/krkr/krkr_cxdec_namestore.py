@@ -2,9 +2,7 @@ import os
 import shutil
 
 def main():
-    # 源文件夹路径（存放 hash 文件）
-    src_folder = r"E:\Games\Galgame\Purple software\Lip lipples\Extractor_Output"
-    # 目标文件夹路径（复制后的文件存放位置）
+    src_folder = r"E:\Games\Galgame\Lump of Sugar\Rurizakura\Extractor_Output"
     dst_folder = r"D:\Fuck_galgame\voice"
 
     # 如果目标文件夹不存在，则创建

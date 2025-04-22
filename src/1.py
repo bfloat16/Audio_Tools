@@ -12,7 +12,7 @@ with open(r'D:\Fuck_galgame\index.json', 'r', encoding='utf-8') as f:
 audio_files = {}
 for root, dirs, files in os.walk(ba):
     for file in files:
-        if file.endswith('.ogg'):  # 只缓存 .ogg 文件
+        if file.endswith('.opus'):  # 只缓存 .ogg 文件
             audio_files[file.lower()] = os.path.join(root, file)
 
 # 更新的 index 数据
@@ -25,7 +25,7 @@ for entry in index_data:
     entry['Speaker'] = speaker  # 更新 Speaker 名称
     entry['Voice'] = voice  # 更新 Voice 名称
     # 拼接音频文件名
-    audio_file_name = f"{voice}.ogg"
+    audio_file_name = f"{voice}.opus"
 
     # 查找音频文件路径
     audio_file_path = audio_files.get(audio_file_name)
@@ -46,5 +46,3 @@ for entry in index_data:
 output_index_path = os.path.join(ba.replace('voice', 'f_'), 'index.json')
 with open(output_index_path, 'w', encoding='utf-8') as f:
     json.dump(updated_index, f, ensure_ascii=False, indent=4)
-
-print("文件分类整理完成，新的 index.json 已保存")

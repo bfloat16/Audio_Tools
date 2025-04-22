@@ -9,9 +9,9 @@ import xmltodict
 
 def parse_args(args=None, namespace=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument("-JA", type=str, default=r"C:\Users\bfloat16\Downloads\GrisaiaExtract\Grisaia no Rakuen\Raw")
+    parser.add_argument("-JA", type=str, default=r"D:\Fuck_galgame\script")
     parser.add_argument("-op", type=str, default=r'D:\Fuck_galgame\index.json')
-    parser.add_argument("-spk", type=str, default=r'D:\Fuck_galgame\startup.xml')
+    parser.add_argument("-spk", type=str, default=r'D:\Fuck_galgame\soundconf.xml')
     return parser.parse_args(args=args, namespace=namespace)
 
 class SceneLineType:
@@ -218,16 +218,6 @@ def text_cleaning(text):
 if __name__ == "__main__":
     args = parse_args()
 
-    with open(args.spk, 'r', encoding='cp932') as f:
-        xml = xmltodict.parse(f.read())
-        spk = {}
-        for item in xml['document']['VOICE'].items():
-            try:
-                if not (item[1]['head'] is None or item[1]['voice'] is None):
-                    spk[item[1]['head']] = item[1]['voice']
-            except:
-                pass
-
     files = [os.path.join(root, file) for root, _, filenames in os.walk(args.JA) for file in filenames if file.lower().endswith('.cst')]
 
     results = []
@@ -255,15 +245,7 @@ if __name__ == "__main__":
 
                 for voice in tmp_voice:
                     voice = voice.replace(' ', '')
-                    try:
-                        Speaker = spk[voice.split('_')[0].lower()]
-                    except:
-                        try:
-                            match = re.match(r'^([a-zA-Z]+)\d+$', voice)
-                            prefix = match.group(1).lower()
-                            Speaker = spk[prefix]
-                        except:
-                            Speaker = tmp_speaker
+                    Speaker = tmp_speaker
                             
                     results.append((Speaker, voice, Text))
                 tmp_voice.clear()
