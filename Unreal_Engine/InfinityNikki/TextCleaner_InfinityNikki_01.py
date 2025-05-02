@@ -4,7 +4,7 @@ import argparse
 from glob import glob
 from rich.progress import (BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn, TimeRemainingColumn)
 
-columns = (SpinnerColumn(), BarColumn(bar_width=100), "[progress.percentage]{task.percentage:>3.0f}%", TimeElapsedColumn(), "•", TimeRemainingColumn(), TextColumn("[bold blue]{task.description}"))
+columns = (SpinnerColumn(), BarColumn(bar_width=100), "[progress.percentage]{task.percentage:.2f}%", TimeElapsedColumn(), "•", TimeRemainingColumn(), TextColumn("[bold blue]{task.description}"))
 
 LANGUAGE_MAP = {
     "CHS": "zh",

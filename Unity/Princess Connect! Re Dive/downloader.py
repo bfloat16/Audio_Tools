@@ -19,6 +19,8 @@ POOL_ROOT_ASSETBUNDLES = "https://prd-priconne-redive.akamaized.net/dl/pool/Asse
 POOL_ROOT_SOUND =        "https://prd-priconne-redive.akamaized.net/dl/pool/Sound"
 POOL_ROOT_MOVIE =        "https://prd-priconne-redive.akamaized.net/dl/pool/Movie"
 
+columns = (SpinnerColumn(), TextColumn("[bold blue]{task.description}"), BarColumn(bar_width=100), "[progress.percentage]{task.percentage:.2f}%", TimeElapsedColumn(), "•", TimeRemainingColumn())
+
 def parser_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=Path(r"E:\Game_Dataset\jp.co.cygames.princessconnectredive"))
@@ -91,17 +93,20 @@ def gather_assets(sess):
     print(f"Found {len(master_items)} sub‑manifests, fetching…")
     assets = []
 
-    for col0, *_ in master_items:
-        if col0.startswith("http"):
-            url = col0
-            cat = "sound" if "soundmanifest" in url else "movie" if "movie" in url else "other"
-        else:
-            url = f"{MANIFEST_ROOT}/{col0}"
-            cat = "other"
+    with Progress(*columns, transient=True) as prog:
+        task_id = prog.add_task("Fetching", total=len(master_items)) 
+        for col0, *_ in master_items:
+            if col0.startswith("http"):
+                url = col0
+                cat = "sound" if "soundmanifest" in url else "movie" if "movie" in url else "other"
+            else:
+                url = f"{MANIFEST_ROOT}/{col0}"
+                cat = "other"
 
-        sub_text = fetch_text(sess, url)
-        for p0, _, p2, _, sz in parse_manifest_lines(sub_text.splitlines()):
-            assets.append(AssetRow(p0, p2, sz, cat))
+            sub_text = fetch_text(sess, url)
+            for p0, _, p2, _, sz in parse_manifest_lines(sub_text.splitlines()):
+                assets.append(AssetRow(p0, p2, sz, cat))
+            prog.update(task_id, advance=1)
 
     return assets
 
@@ -121,17 +126,19 @@ def filter_existing(assets, root):
     skipped = 0
 
     print("Scanning existing files (XXH64)…")
-    for a in assets:
-        dest = root / a.rel_path
-        if dest.is_file():
-            if file_xxh64(dest) == a.hash_:
-                skipped += 1
-                continue
-        to_dl.append(a)
+    with Progress(*columns, transient=True) as prog:
+        task_id = prog.add_task("Scanning", total=len(assets)) 
+        for a in assets:
+            dest = root / a.rel_path
+            if dest.is_file():
+                if file_xxh64(dest) == a.hash_:
+                    skipped += 1
+                    continue
+            to_dl.append(a)
+            prog.update(task_id, advance=1)
     return to_dl, skipped
 
 def download_many(assets, root, sess, workers):
-    columns = (SpinnerColumn(), TextColumn("[bold blue]{task.description}"), BarColumn(bar_width=None), "[progress.percentage]{task.percentage:>3.0f}%", TimeElapsedColumn(), "•", TimeRemainingColumn())
     with Progress(*columns, transient=True) as prog:
         task_id = prog.add_task("Downloading", total=len(assets))
         with ThreadPoolExecutor(max_workers=workers) as pool:
