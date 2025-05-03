@@ -10,7 +10,7 @@ columns = (SpinnerColumn(), BarColumn(bar_width=100), "[progress.percentage]{tas
 
 def args_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input", type=Path, default=Path(r"E:\Game_Dataset\jp.co.cygames.princessconnectredive\EXP"))
+    parser.add_argument("--input", type=Path, default=Path(r"E:\Game_Dataset\jp.co.cygames.princessconnectredive\EXP\Story"))
     parser.add_argument("--output", type=Path, default=Path(r"index.json"))
     args = parser.parse_args()
     return args
@@ -131,7 +131,8 @@ class CommandId(Enum):
     UNKNOWN = 112
 
 def clean_text(text):
-    text = text.replace("\\n", "\n").replace("\n", "").replace("{0}", "{player_name}").replace('\\"', '"')
+    text = text.replace("「", "").replace("」", "").replace("『", "").replace("』", "").replace("【", "").replace("】", "")
+    text = text.replace("\\n", "\n").replace("\n", "").replace('\\"', '"')
     text = text.replace("\u3000", "")
     return text
 
@@ -229,6 +230,8 @@ if __name__ == "__main__":
                     continue
                 speaker = block["print"]["name"]
                 text    = block["print"]["text"]
+                if '{0}' in text:
+                    continue
                 result.append({
                     "major":   major,
                     "minor":   minor,

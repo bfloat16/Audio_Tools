@@ -42,7 +42,6 @@ def file_xxh64(path):
 
 def create_session():
     sess = requests.Session()
-    sess.proxies.update({"http": "http://127.0.0.1:7897", "https": "http://127.0.0.1:7897"})
     return sess
 
 def fetch_text(sess, url):
