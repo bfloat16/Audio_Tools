@@ -12,6 +12,11 @@ MONOBEHAVIOUR_TYPETREES = {}
 
 UnityPy.config.FALLBACK_UNITY_VERSION = "2021.3.39f1"
 
+def exportTextAsset(obj, fp, extension=".bytes"):
+    with open(f"{fp}", "wb") as f:
+        f.write(obj.m_Script.encode("utf-8", "surrogateescape"))
+    return [(obj.assets_file, obj.object_reader.path_id)]
+
 def exportMonoBehaviour(obj, fp, extension= ""):
     export = None
     if obj.object_reader.serialized_type.node:
@@ -38,6 +43,7 @@ def exportMonoBehaviour(obj, fp, extension= ""):
 
 EXPORT_TYPES = {
     ClassIDType.MonoBehaviour: exportMonoBehaviour,
+    ClassIDType.TextAsset: exportTextAsset,
 }
 
 def _custom_load_folder(self, path):
@@ -111,11 +117,14 @@ def extract_assets(source, target, include_types=None, ignore_first_dirs=0, appe
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--src", default=r"E:\Game_Dataset\jp.co.craftegg.band\RAW\scenario")
-    parser.add_argument("--dst", default=r"E:\Game_Dataset\jp.co.craftegg.band\EXP\Story")
-    parser.add_argument("--id", default=True)
-    parser.add_argument("--ignore", type=int, default=5, metavar="N")
-    parser.add_argument("--filter", nargs="+", default=["MonoBehaviour"])
+    parser.add_argument("--src", default=r"E:\Game_Dataset\jp.co.craftegg.band\RAW")
+    parser.add_argument("--dst", default=r"E:\Game_Dataset\jp.co.craftegg.band\EXP")
     args = parser.parse_args()
 
-    exported = extract_assets(source=args.src, target=args.dst, include_types=args.filter, ignore_first_dirs=args.ignore, append_path_id=args.id)
+    source = os.path.join(args.src, "scenario")
+    dst = os.path.join(args.dst, "Stroy")
+    exported = extract_assets(source=source, target=dst, include_types=["MonoBehaviour"], ignore_first_dirs=5, append_path_id=True)
+
+    source = os.path.join(args.src, "sound")
+    dst = os.path.join(args.dst, "Sound")
+    exported = extract_assets(source=source, target=dst, include_types=["TextAsset"], ignore_first_dirs=5, append_path_id=False)
