@@ -15,7 +15,7 @@ def parser_args():
     p.add_argument("--workers", type=int, default=32)
     return p.parse_args()
 
-columns = (SpinnerColumn(), TextColumn("[bold blue]{task.description}"), BarColumn(bar_width=100), "[progress.percentage]{task.percentage:>6.2f}%", TimeElapsedColumn(), "•", TimeRemainingColumn())
+columns = (SpinnerColumn(), TextColumn("[bold blue]{task.description}"), BarColumn(bar_width=100), "[progress.percentage]{task.percentage:>6.2f}%", TextColumn("{task.completed}/{task.total}"), TimeElapsedColumn(), "•", TimeRemainingColumn())
 
 @dataclass
 class AssetRow:
@@ -124,16 +124,20 @@ def main():
     )
 
     need_download = []
-    for r in rows:
-        local_path = local_dest_path(root, r)
-        if os.path.isfile(local_path) and crc32_of_file(local_path) == r.crc32:
-            continue
-        need_download.append((r, local_path))
+    with Progress(*columns) as prog:
+        crc_task = prog.add_task("Checking CRC", total=len(rows))
+        for r in rows:
+            local_path = local_dest_path(root, r)
+            if os.path.isfile(local_path) and crc32_of_file(local_path) == r.crc32:
+                pass
+            else:
+                need_download.append((r, local_path))
+            prog.update(crc_task, advance=1)
 
     print(f"Need download: {len(need_download):,} / {len(rows):,}")
 
     if not need_download:
-        print("All files are up‑to‑date.")
+        print("All files are up-to-date.")
         return
 
     sess = requests.Session()

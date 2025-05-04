@@ -1,7 +1,6 @@
 import bz2
 import gzip
-import base64
-from rijndael.rijndael import RijndaelCbc, Pkcs7Padding
+from cppdael import MODE_CBC, Pkcs7Padding, decrypt_unpad
 
 def get_interleaved_split():
     s1 = "kzdMtpmzqCHAfx00saU1gIhTjYCuOD1JstqtisXsGYqRVcqrHRydj3k6vJCySu3g"
@@ -29,11 +28,11 @@ def get_interleaved_split():
         else:
             stage_top.append(byte)
 
-    return base_data, base_top, stage_data, stage_top
+    # 转成只读的 bytes 返回
+    return bytes(base_data), bytes(base_top), bytes(stage_data), bytes(stage_top)
 
 def decrypt_and_decompress(data, home, info, is_compress):
-    cipher = RijndaelCbc(key=home, iv=info[:32], padding=Pkcs7Padding(32), block_size=32)
-    decrypted = cipher.decrypt(data)
+    decrypted = decrypt_unpad(MODE_CBC, 32, key=home, iv=info[:32], cipher=data, padding=Pkcs7Padding(32))
 
     if is_compress:
         if decrypted.startswith(b"BZh"):
