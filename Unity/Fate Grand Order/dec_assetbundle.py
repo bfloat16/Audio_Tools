@@ -71,7 +71,6 @@ def process_ab(ab, root, output, prog, task_id):
 
     prog.update(task_id, advance=1)
 
-
 def main():
     args = args_parser()
 

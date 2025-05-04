@@ -1,0 +1,68 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v8.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v8.0": {
+      "BanG_Dream_protobufnet/1.0.0": {
+        "dependencies": {
+          "ILRepack": "2.0.41",
+          "protobuf-net": "3.2.52"
+        },
+        "runtime": {
+          "BanG_Dream_protobufnet.dll": {}
+        }
+      },
+      "ILRepack/2.0.41": {},
+      "protobuf-net/3.2.52": {
+        "dependencies": {
+          "protobuf-net.Core": "3.2.52"
+        },
+        "runtime": {
+          "lib/net8.0/protobuf-net.dll": {
+            "assemblyVersion": "3.0.0.0",
+            "fileVersion": "3.2.52.62683"
+          }
+        }
+      },
+      "protobuf-net.Core/3.2.52": {
+        "runtime": {
+          "lib/net8.0/protobuf-net.Core.dll": {
+            "assemblyVersion": "3.0.0.0",
+            "fileVersion": "3.2.52.62683"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "BanG_Dream_protobufnet/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ILRepack/2.0.41": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-dJy3Nbu0ABWEqQqVh+Jei0Ql8pyWgls+WNnabNh6OQ9vRKrss/DtTbQ3kMKQvPO8QGoAfFYGTJpA0lToQAB6mA==",
+      "path": "ilrepack/2.0.41",
+      "hashPath": "ilrepack.2.0.41.nupkg.sha512"
+    },
+    "protobuf-net/3.2.52": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-XbZurNU3B/VaL/5OJ0kshO+AWxsZroI1saKuLfZpDwH2ngb2K9bdF1nIW6elFOViZw7TQCmfVZapxrMKCDqecQ==",
+      "path": "protobuf-net/3.2.52",
+      "hashPath": "protobuf-net.3.2.52.nupkg.sha512"
+    },
+    "protobuf-net.Core/3.2.52": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-zOpGtUo2QTgbsiI0D0yCe8aUTgDPov6kqIu1CDHI6isqhYcAHdirRrdnfsQXmAUfAWx1LwVYGgC6xe6fNS4UAg==",
+      "path": "protobuf-net.core/3.2.52",
+      "hashPath": "protobuf-net.core.3.2.52.nupkg.sha512"
+    }
+  }
+}

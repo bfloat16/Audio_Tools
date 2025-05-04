@@ -1,0 +1,14 @@
+syntax = "proto2";
+
+message AppGetResponse {
+  optional string clientVersion     = 1;
+  optional string dataVersion       = 2;
+  optional string appStatus         = 3;
+  optional string clientStatus      = 4;
+  optional string schema            = 5;
+  optional string gacha             = 7;
+  optional string multiLive         = 8;
+  optional string starShop          = 9;
+  optional string masterDataVersion = 10;
+  optional string photonAppId       = 11;
+}
