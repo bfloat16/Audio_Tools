@@ -19,8 +19,7 @@ sys.path.append(tools_dir)
 
 dll_path = os.path.join(tools_dir, "BanG_Dream_protobufnet.dll")
 clr.AddReference(dll_path)
-from BanG_Dream_protobufnet import ManifestLoader
-
+from BanG_Dream_protobufnet import ManifestLoader #别删，这玩意是从BanG_Dream_protobufnet.dll里导入的
 
 def args_parser():
     parser = argparse.ArgumentParser()
