@@ -213,7 +213,22 @@ def filter_existing(root, assets):
     with Progress(*columns, transient=True) as prog:
         task_id = prog.add_task("Scanning", total=len(assets))
         for a in assets:
-            dest = os.path.join(root, a['name'])
+            if a['name'].endswith(".unity3d"):
+                dest = os.path.join(root, "a", a['name'])
+
+            elif a['name'].endswith(".acb") or a['name'].endswith(".awb") or a['name'].endswith(".bytes"):
+                dest = os.path.join(root, a['name'])
+
+            elif a['name'].endswith(".usm"):
+                dest = os.path.join(root, a['name'])
+                
+            elif a['name'].endswith(".bdb") or a['name'].endswith(".mdb"):
+                dest = os.path.join(root, "master", a["name"])
+                
+            else:
+                print(f"[E] Unknown file type: {a['name']}")
+                continue
+            
             if os.path.exists(dest) and os.path.getsize(dest) == a['size']:
                 with open(dest, "rb") as f:
                     if Hash.md5(f) == a['hash']:
@@ -250,7 +265,7 @@ def download_many(root, assets, workers):
                 elif a['name'].endswith(".bdb") or a['name'].endswith(".mdb"):
                     url = f"/dl/resources/Generic/{a['hash'][:2]}/{a['hash']}"
                     dest = os.path.join(root, "master", a["name"])
-                    
+
                 else:
                     print(f"[E] Unknown file type: {a['name']}")
                     continue
