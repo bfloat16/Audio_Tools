@@ -75,25 +75,22 @@ class Cryptographer:
     
 class Game_API:
     def __init__(self):
-        self.API_URL      = r"https://apis.game.starlight-stage.jp"
-        self.ASSET_URL   = r"https://asset-starlight-stage.akamaized.net"
+        self.API_URL   = "https://apis.game.starlight-stage.jp"
+        self.ASSET_URL = "https://asset-starlight-stage.akamaized.net"
 
-        self.UNITY_VER     = r"2022.3.40f1"
-        self.APP_VER       = r"11.2.5"
-        self.RES_VER       = r"10127900"
+        self.UNITY_VER = "2022.3.40f1"
+        self.APP_VER   = "11.2.5"
+        self.RES_VER   = "10127900"
 
-        self.GUID          = str(uuid.uuid4()).replace("-", "")
+        self.GUID      = uuid.uuid4().hex
+        self.VIEWER_ID     = "0"
+        self.VIEWER_ID_KEY = "s%5VNQ(H$&Bqb6#3+78h29!Ft4wSg)ex"
+        self.VIEWER_ID_IV  = "".join(str(random.randint(1, 9)) for _ in range(16))
 
-        self.VIEWER_ID     = r"0"
-        self.VIEWER_ID_KEY = r"s%5VNQ(H$&Bqb6#3+78h29!Ft4wSg)ex"
-        self.VIEWER_ID_IV  = ''.join(str(random.randint(1, 9)) for _ in range(16))
+        self.USER_ID  = "0"
+        self.SID      = "0"
+        self.SID_SALT = "r!I@nt8e5i="
 
-        self.USER_ID       = r"0"
-
-        self.SID           = r"0"
-        self.SID_SALT      = "r!I@nt8e5i="
-
-        # 下载池
         self.session = requests.Session()
         retries = Retry(total=100, backoff_factor=0.5, status_forcelist=[500, 502, 503, 504])
         adapter = HTTPAdapter(pool_connections=100, pool_maxsize=100, max_retries=retries)
@@ -105,29 +102,35 @@ class Game_API:
             "X-Unity-Version": self.UNITY_VER,
         })
 
+    def _post(self, url, data=None, extra_headers=None, **kw):
+        hdr = self.session.headers.copy()
+        if extra_headers:
+            hdr.update(extra_headers)
+        return self.session.post(url, data=data, headers=hdr, **kw)
+
+    def _get(self, url, extra_headers=None, **kw):
+        hdr = self.session.headers.copy()
+        if extra_headers:
+            hdr.update(extra_headers)
+        return self.session.get(url, headers=hdr, **kw)
+
     def call_game(self, endpoint):
-        args = {}
-        args["timezone"]  = "09:00:00"
+        args = {"timezone": "09:00:00"}
 
-        viewer_id_enc = Rijndael.encrypt(self.VIEWER_ID.encode('utf-8'), self.VIEWER_ID_KEY.encode('utf-8'), self.VIEWER_ID_IV.encode('utf-8'), key_size=128)
-        viewer_id_enc = base64.b64encode(viewer_id_enc).decode('utf-8')
-        args["viewer_id"] = self.VIEWER_ID_IV + viewer_id_enc
+        vid_enc = Rijndael.encrypt(self.VIEWER_ID.encode(), self.VIEWER_ID_KEY.encode(), self.VIEWER_ID_IV.encode(), key_size=128)
+        args["viewer_id"] = self.VIEWER_ID_IV + base64.b64encode(vid_enc).decode()
 
-        args_packed = msgpack.packb(args, use_bin_type=True)
-        args_packed_b64 = base64.b64encode(args_packed).decode('utf-8')
-        args_packed_b64_key = ''.join(str(random.randint(0,9)) for _ in range(32)).encode('utf-8')
-        args_packed_b64_iv = bytes(int(self.GUID[i:i+2], 16) for i in range(0, len(self.GUID), 2))
+        packed = base64.b64encode(msgpack.packb(args, use_bin_type=True)).decode()
+        key32  = "".join(str(random.randint(0, 9)) for _ in range(32)).encode()
+        iv16   = bytes(int(self.GUID[i:i+2], 16) for i in range(0, 32, 2))
 
-        msg_enc = Rijndael.encrypt(args_packed_b64.encode('utf-8'), args_packed_b64_key, args_packed_b64_iv, key_size=128)
-        msg_enc_b64 = base64.b64encode(msg_enc)
+        cipher = Rijndael.encrypt(packed.encode(), key32, iv16, key_size=128)
+        body_b64 = base64.b64encode(cipher + key32).decode()
 
-        body = msg_enc_b64 + args_packed_b64_key
-        body_b64 = base64.b64encode(body).decode('utf-8')
-
-        headers = {
+        api_headers = {
             "Processor-Type": "arm64e",
             "User-Agent": "BNEI0242/425 CFNetwork/3826.500.111.2.2 Darwin/24.4.0",
-            "Param": Hash.sha1((self.GUID + self.VIEWER_ID + endpoint + args_packed_b64)),
+            "Param": Hash.sha1(self.GUID + self.VIEWER_ID + endpoint + packed),
             "Device-Name": "iPhone15,2",
             "Graphics-Device-Name": "Apple A16 GPU",
             "Platform-Os-Version": "iOS 18.4.1",
@@ -135,7 +138,6 @@ class Game_API:
             "Udid": Cryptographer.encode(self.GUID),
             "Device-Id": "11111111-1111-1111-1111-111111111111",
             "Sid": Hash.md5(self.SID + self.SID_SALT),
-            "X-Unity-Version": self.UNITY_VER,
             "Carrier": "--",
             "Ip-Address": "127.0.0.1",
             "Accept-Language": "zh-CN,zh-Hans;q=0.9",
@@ -143,53 +145,30 @@ class Game_API:
             "Res-Ver": self.RES_VER,
             "User-Id": Cryptographer.encode(self.USER_ID),
             "Content-Type": "application/octet-stream",
-            "Accept": "*/*",
-            "Accept-Encoding": "gzip, deflate, br",
             "Device": "1",
             "Idfa": "00000000-0000-0000-0000-000000000000",
-            "Connection": "keep-alive"
+            "Connection": "keep-alive",
         }
-        response_b64 = requests.post(self.API_URL + endpoint, headers=headers, data=body_b64).text
 
-        src = base64.b64decode(response_b64)
-        bytekey = src[-32:]
-        context = src[:-32]
-        plain = Rijndael.decrypt(context, bytekey, args_packed_b64_iv)
-        plain_bytes = base64.b64decode(plain)
+        resp_b64 = self._post(self.API_URL + endpoint, data=body_b64, extra_headers=api_headers, timeout=10).text
 
-        result = msgpack.unpackb(plain_bytes, raw=False)
-
+        src      = base64.b64decode(resp_b64)
+        key_resp = src[-32:]
+        cipher   = src[:-32]
+        plain    = Rijndael.decrypt(cipher, key_resp, iv16)
+        result   = msgpack.unpackb(base64.b64decode(plain), raw=False)
         return result
-    
-    def call_asset(self, endpoint):
-        headers = {
-            "User-Agent": "UnityPlayer/2022.3.40f1 (UnityWebRequest/1.0, libcurl/8.5.0-DEV)",
-            "Accept": "*/*",
-            "Accept-Encoding": "gzip, deflate",
-            "X-Unity-Version": self.UNITY_VER,
-        }
 
-        while True:
-            try:
-                resp = requests.get(self.ASSET_URL + endpoint, headers=headers)
-                resp.raise_for_status()
-                return resp.content
-            
-            except requests.RequestException as e:
-                print(f"[W] {e}")
-                time.sleep(2)
-
-    def dl_asset(self, endpoint):
+    def call_asset(self, endpoint, retry_delay=2, timeout=10):
         url = self.ASSET_URL + endpoint
         while True:
             try:
-                resp = self.session.get(url, timeout=10)
+                resp = self._get(url, timeout=timeout)
                 resp.raise_for_status()
                 return resp.content
-            
             except requests.RequestException as e:
                 print(f"[W] {e}")
-                time.sleep(2)
+                time.sleep(retry_delay)
 
 def table_to_dict(data, table_name):
     data = io.BytesIO(data)
@@ -248,6 +227,7 @@ def filter_existing(root, assets):
                 with open(dest, "rb") as f:
                     if Hash.md5(f) == a['hash']:
                         skipped += 1
+                        prog.update(task_id, advance=1)
                         continue
 
             to_dl.append(a)
@@ -266,7 +246,7 @@ def download_many(root, assets, workers):
             for a in assets:
                 url = f"/dl/resources/AssetBundles//{a['hash'][:2]}/{a['hash']}"
                 dest = os.path.join(root, a['name'])
-                future = pool.submit(asset_api.dl_asset, url)
+                future = pool.submit(asset_api.call_asset, url)
                 future_to_dest[future] = dest
 
             for future in as_completed(future_to_dest):
