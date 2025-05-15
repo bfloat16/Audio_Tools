@@ -11,11 +11,13 @@ import hashlib
 import requests
 import argparse
 import lz4.block
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from rich.progress import (BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn, TimeRemainingColumn)
-columns = (SpinnerColumn(), TextColumn("[bold blue]{task.description}"), BarColumn(bar_width=100), "[progress.percentage]{task.percentage:.2f}%", TimeElapsedColumn(), "•", TimeRemainingColumn())
+columns = (SpinnerColumn(), TextColumn("[bold blue]{task.description}"), BarColumn(bar_width=100), "[progress.percentage]{task.percentage:>6.2f}%", TextColumn("{task.completed}/{task.total}"), TimeElapsedColumn(), "•", TimeRemainingColumn())
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -91,6 +93,18 @@ class Game_API:
         self.SID           = r"0"
         self.SID_SALT      = "r!I@nt8e5i="
 
+        # 下载池
+        self.session = requests.Session()
+        retries = Retry(total=100, backoff_factor=0.5, status_forcelist=[500, 502, 503, 504])
+        adapter = HTTPAdapter(pool_connections=100, pool_maxsize=100, max_retries=retries)
+        self.session.mount("https://", adapter)
+        self.session.headers.update({
+            "User-Agent": f"UnityPlayer/{self.UNITY_VER} (UnityWebRequest/1.0, libcurl/8.5.0-DEV)",
+            "Accept": "*/*",
+            "Accept-Encoding": "gzip, deflate",
+            "X-Unity-Version": self.UNITY_VER,
+        })
+
     def call_game(self, endpoint):
         args = {}
         args["timezone"]  = "09:00:00"
@@ -158,6 +172,18 @@ class Game_API:
         while True:
             try:
                 resp = requests.get(self.ASSET_URL + endpoint, headers=headers)
+                resp.raise_for_status()
+                return resp.content
+            
+            except requests.RequestException as e:
+                print(f"[W] {e}")
+                time.sleep(2)
+
+    def dl_asset(self, endpoint):
+        url = self.ASSET_URL + endpoint
+        while True:
+            try:
+                resp = self.session.get(url, timeout=10)
                 resp.raise_for_status()
                 return resp.content
             
@@ -240,7 +266,7 @@ def download_many(root, assets, workers):
             for a in assets:
                 url = f"/dl/resources/AssetBundles//{a['hash'][:2]}/{a['hash']}"
                 dest = os.path.join(root, a['name'])
-                future = pool.submit(asset_api.call_asset, url)
+                future = pool.submit(asset_api.dl_asset, url)
                 future_to_dest[future] = dest
 
             for future in as_completed(future_to_dest):
