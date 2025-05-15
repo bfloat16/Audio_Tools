@@ -188,15 +188,6 @@ def table_to_dict(data, table_name):
     cur = conn.cursor()
     cur.execute(f"SELECT * FROM {table_name}")
     result = [dict(row) for row in cur.fetchall()]
-
-    if result:
-        first_key = next(iter(result[0]))
-        for row in result:
-            val = row[first_key]
-            if isinstance(val, str) and '/' not in val:
-                row[first_key] = f'a\\{val}'
-
-    conn.close()
     return result
 
 def parse_manifest(data):
@@ -246,19 +237,24 @@ def download_many(root, assets, workers):
             for a in assets:
                 if a['name'].endswith(".unity3d"):
                     url = f"/dl/resources/AssetBundles/{a['hash'][:2]}/{a['hash']}"
+                    dest = os.path.join(root, "a", a['name'])
 
                 elif a['name'].endswith(".acb") or a['name'].endswith(".awb") or a['name'].endswith(".bytes"):
                     url = f"/dl/resources/Sound/{a['hash'][:2]}/{a['hash']}"
+                    dest = os.path.join(root, a['name'])
 
                 elif a['name'].endswith(".usm"):
                     url = f"/dl/resources/Movie/{a['hash'][:2]}/{a['hash']}"
+                    dest = os.path.join(root, a['name'])
                     
-                elif a['name'].endswith(".bdb"):
+                elif a['name'].endswith(".bdb") or a['name'].endswith(".mdb"):
                     url = f"/dl/resources/Generic/{a['hash'][:2]}/{a['hash']}"
+                    dest = os.path.join(root, "master", a["name"])
+                    
                 else:
                     print(f"[E] Unknown file type: {a['name']}")
+                    continue
 
-                dest = os.path.join(root, a['name'])
                 future = pool.submit(asset_api.call_asset, url)
                 future_to_dest[future] = dest
 
