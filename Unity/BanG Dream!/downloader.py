@@ -83,8 +83,8 @@ def handler_assetbundle_info(root, data):
         task_id = progress.add_task("Checking", total=None)
         for item in data["Bundles"].values():
             name = item["BundleName"] + ".unity3d"
-            if not any(name.startswith(f) for f in filters):
-                continue
+            #if not any(name.startswith(f) for f in filters):
+                #continue
             total_filesize += int(item["FileSize"])
             bundles.append(name)
 

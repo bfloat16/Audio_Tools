@@ -122,7 +122,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     source = os.path.join(args.src, "scenario")
-    dst = os.path.join(args.dst, "Stroy")
+    dst = os.path.join(args.dst, "Story")
     exported = extract_assets(source=source, target=dst, include_types=["MonoBehaviour"], ignore_first_dirs=5, append_path_id=True)
 
     source = os.path.join(args.src, "sound")
