@@ -21,7 +21,7 @@ columns = (SpinnerColumn(), TextColumn("[bold blue]{task.description}"), BarColu
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--RAW", default=r"E:\Game_Dataset\jp.co.bandainamcoent.BNEI0242\RAW")
+    parser.add_argument("--RAW", default=r"D:\jp.co.bandainamcoent.BNEI0242\RAW")
     parser.add_argument("--thread", type=int, default=32)
     return parser.parse_args()
 
@@ -150,7 +150,7 @@ class Game_API:
             "Connection": "keep-alive",
         }
 
-        resp_b64 = self._post(self.API_URL + endpoint, data=body_b64, extra_headers=api_headers, timeout=10).text
+        resp_b64 = self._post(self.API_URL + endpoint, data=body_b64, extra_headers=api_headers).text
 
         src      = base64.b64decode(resp_b64)
         key_resp = src[-32:]
@@ -159,16 +159,16 @@ class Game_API:
         result   = msgpack.unpackb(base64.b64decode(plain), raw=False)
         return result
 
-    def call_asset(self, endpoint, retry_delay=2, timeout=10):
+    def call_asset(self, endpoint):
         url = self.ASSET_URL + endpoint
         while True:
             try:
-                resp = self._get(url, timeout=timeout)
+                resp = self._get(url)
                 resp.raise_for_status()
                 return resp.content
             except requests.RequestException as e:
                 print(f"[W] {e}")
-                time.sleep(retry_delay)
+                time.sleep(2)
 
 def table_to_dict(data, table_name):
     data = io.BytesIO(data)
@@ -244,7 +244,20 @@ def download_many(root, assets, workers):
         with ThreadPoolExecutor(max_workers=workers) as pool:
             future_to_dest = {}
             for a in assets:
-                url = f"/dl/resources/AssetBundles//{a['hash'][:2]}/{a['hash']}"
+                if a['name'].endswith(".unity3d"):
+                    url = f"/dl/resources/AssetBundles/{a['hash'][:2]}/{a['hash']}"
+
+                elif a['name'].endswith(".acb") or a['name'].endswith(".awb") or a['name'].endswith(".bytes"):
+                    url = f"/dl/resources/Sound/{a['hash'][:2]}/{a['hash']}"
+
+                elif a['name'].endswith(".usm"):
+                    url = f"/dl/resources/Movie/{a['hash'][:2]}/{a['hash']}"
+                    
+                elif a['name'].endswith(".bdb"):
+                    url = f"/dl/resources/Generic/{a['hash'][:2]}/{a['hash']}"
+                else:
+                    print(f"[E] Unknown file type: {a['name']}")
+
                 dest = os.path.join(root, a['name'])
                 future = pool.submit(asset_api.call_asset, url)
                 future_to_dest[future] = dest
