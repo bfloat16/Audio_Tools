@@ -21,7 +21,7 @@ columns = (SpinnerColumn(), TextColumn("[bold blue]{task.description}"), BarColu
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--RAW", default=r"D:\jp.co.bandainamcoent.BNEI0242\RAW")
+    parser.add_argument("--RAW", default=r"E:\Game_Dataset\jp.co.bandainamcoent.BNEI0242\RAW")
     parser.add_argument("--thread", type=int, default=32)
     return parser.parse_args()
 
